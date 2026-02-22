@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual envs
+venv/
+.venv/
+**/venv/
+**/.venv/
+
+# Node
+node_modules/
+**/node_modules/
+
+# Env / secrets
+.env
+.env.*
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
