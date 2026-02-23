@@ -3,6 +3,35 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.log
+
+# Virtual envs
+venv/
+.venv/
+env/
+chatbot_v1/venv/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# Env
+.env
+*.env
+
+# IDE / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Windows download markers
+*:Zone.Identifier# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 *.pkl
 *.log
 
@@ -87,6 +116,7 @@ build/
 =======
 .env
 
+<<<<<<< HEAD
 >>>>>>> 2dea329 (Add gitignore)
 # Python
 __pycache__/
@@ -123,3 +153,6 @@ Thumbs.db
 # Data / indexes (optional: uncomment if too big)
 # chatbot_v1/data/indexing_results/
 # chatbot_v1/data/uploads/
+=======
+chatbot_v1/venv/
+>>>>>>> daf5a9c (Remove venv from repository)
