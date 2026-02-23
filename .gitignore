@@ -1,3 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.log
+
+# Virtual envs
+venv/
+.venv/
+chatbot_v1/venv/
+env/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# Env files
+.env
+*.env
+
+# IDE / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Windows download markers
+*:Zone.Identifier
+
+# Data / indexes (optional: uncomment if too big)
+# chatbot_v1/data/indexing_results/
+# chatbot_v1/data/uploads/<<<<<<< HEAD
 <<<<<<< HEAD
 # Logs
 logs
@@ -38,19 +73,53 @@ venv/
 **/.venv/
 
 # Node
+=======
+>>>>>>> 2dea329 (Add gitignore)
 node_modules/
-**/node_modules/
-
-# Env / secrets
-.env
-.env.*
-
-# OS / editors
-.DS_Store
-.vscode/
-.idea/
-
-# Build
+.venv/
+venv/
+__pycache__/
+*.log
 dist/
 build/
+<<<<<<< HEAD
 >>>>>>> 23cf781 (Initial clean commit)
+=======
+.env
+
+>>>>>>> 2dea329 (Add gitignore)
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.log
+
+# Virtual envs
+venv/
+.venv/
+chatbot_v1/venv/
+env/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# Env files
+.env
+*.env
+
+# IDE / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Windows download markers
+*:Zone.Identifier
+
+# Data / indexes (optional: uncomment if too big)
+# chatbot_v1/data/indexing_results/
+# chatbot_v1/data/uploads/
