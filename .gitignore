@@ -7,3 +7,4 @@ dist/
 build/
 .env
 
+chatbot_v1/venv/
