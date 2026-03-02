@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from bson import ObjectId
 from fastapi import HTTPException, status
 from langchain_core.documents import Document
 from langchain_community.embeddings import FastEmbedEmbeddings
@@ -10,16 +9,18 @@ from langchain_qdrant import QdrantVectorStore
 from qdrant_client.http import models
 
 from app.core.config import settings
-from app.database.connections import get_documents_collection, qdrant_client
+from app.database.connections import qdrant_client
+from app.repositories import DocumentsRepository
 from app.schemas import DocumentStatus
 from app.services.document_loader import extract_text_from_path
 from app.services.text_processing import chunk_text, clean_text, unique_chunks
 
 _embeddings = None
 _vector_store = None
+_documents_repo = DocumentsRepository()
 
 
-def _get_embeddings():
+def _get_cached_embedding_model():
     # Cache local du modèle d'embedding pour éviter les rechargements.
     global _embeddings
     if _embeddings is None:
@@ -27,9 +28,9 @@ def _get_embeddings():
     return _embeddings
 
 
-def _ensure_qdrant_collection():
+def _ensure_qdrant_collection_exists():
     # Crée la collection Qdrant si elle n'existe pas.
-    embeddings = _get_embeddings()
+    embeddings = _get_cached_embedding_model()
     vector_size = len(embeddings.embed_query("test vector size"))
     existing = {collection.name for collection in qdrant_client.get_collections().collections}
 
@@ -40,14 +41,14 @@ def _ensure_qdrant_collection():
         )
 
 
-def _get_vector_store():
+def _get_cached_vector_store():
     global _vector_store
     if _vector_store is None:
-        _ensure_qdrant_collection()
+        _ensure_qdrant_collection_exists()
         _vector_store = QdrantVectorStore(
             client=qdrant_client,
             collection_name=settings.qdrant_collection_name,
-            embedding=_get_embeddings(),
+            embedding=_get_cached_embedding_model(),
         )
     return _vector_store
 
@@ -86,7 +87,7 @@ def _write_indexing_result(
     return str(output_path)
 
 
-def _load_text_from_document(doc: dict[str, Any]) -> str:
+def _resolve_document_text_content(doc: dict[str, Any]) -> str:
     if isinstance(doc.get("content"), str) and doc["content"].strip():
         return doc["content"]
 
@@ -101,24 +102,15 @@ def _load_text_from_document(doc: dict[str, Any]) -> str:
 
 def index_document_by_id(document_id: str) -> int:
     # Pipeline complet: extraction -> nettoyage -> chunks -> embeddings -> Qdrant.
-    _ensure_qdrant_collection()
-    collection = get_documents_collection()
-    try:
-        mongo_id = ObjectId(document_id)
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="documentId invalide.") from exc
-
-    doc = collection.find_one({"_id": mongo_id, "deletedAt": None})
+    _ensure_qdrant_collection_exists()
+    doc = _documents_repo.get_active_document_raw_by_id(document_id)
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
 
-    collection.update_one(
-        {"_id": mongo_id},
-        {"$set": {"documentStatus": DocumentStatus.PROCESSING.value, "indexError": None}},
-    )
+    _documents_repo.mark_document_as_processing(document_id)
 
     try:
-        raw = _load_text_from_document(doc)
+        raw = _resolve_document_text_content(doc)
         cleaned = clean_text(raw)
         chunks_raw = chunk_text(cleaned)
         chunks = unique_chunks(chunks_raw)
@@ -155,7 +147,7 @@ def index_document_by_id(document_id: str) -> int:
         )
 
         ids = [_chunk_point_id(document_id, idx) for idx in range(len(qdrant_docs))]
-        _get_vector_store().add_documents(qdrant_docs, ids=ids)
+        _get_cached_vector_store().add_documents(qdrant_docs, ids=ids)
 
         indexed_points = qdrant_client.count(
             collection_name=settings.qdrant_collection_name,
@@ -172,16 +164,10 @@ def index_document_by_id(document_id: str) -> int:
         if indexed_points == 0:
             raise ValueError("Indexation Qdrant echouee: 0 point enregistre.")
 
-        collection.update_one(
-            {"_id": mongo_id},
-            {
-                "$set": {
-                    "documentStatus": DocumentStatus.INDEXED.value,
-                    "indexedAt": datetime.now(timezone.utc),
-                    "chunksCount": indexed_points,
-                    "indexError": None,
-                }
-            },
+        _documents_repo.mark_document_as_indexed(
+            document_id,
+            indexed_at=datetime.now(timezone.utc),
+            chunks_count=indexed_points,
         )
         _write_indexing_result(
             document_id=document_id,
@@ -193,15 +179,7 @@ def index_document_by_id(document_id: str) -> int:
         )
         return indexed_points
     except Exception as exc:
-        collection.update_one(
-            {"_id": mongo_id},
-            {
-                "$set": {
-                    "documentStatus": DocumentStatus.FAILED.value,
-                    "indexError": str(exc),
-                }
-            },
-        )
+        _documents_repo.mark_document_as_failed(document_id, error=str(exc))
         _write_indexing_result(
             document_id=document_id,
             title=str(doc.get("title", "")),
@@ -216,19 +194,18 @@ def index_document_by_id(document_id: str) -> int:
 
 def index_pending_documents() -> tuple[int, int, int]:
     # Indexe tous les documents en attente.
-    collection = get_documents_collection()
-    docs = list(collection.find({"deletedAt": None, "documentStatus": {"$ne": DocumentStatus.INDEXED.value}}))
+    doc_ids = _documents_repo.list_non_indexed_active_document_ids()
     indexed = 0
     failed = 0
 
-    for doc in docs:
+    for document_id in doc_ids:
         try:
-            index_document_by_id(str(doc["_id"]))
+            index_document_by_id(document_id)
             indexed += 1
         except Exception:
             failed += 1
 
-    return len(docs), indexed, failed
+    return len(doc_ids), indexed, failed
 
 
 def qdrant_health() -> dict[str, Any]:
@@ -250,7 +227,7 @@ def qdrant_health() -> dict[str, Any]:
 
 def qdrant_collection_stats() -> dict[str, Any]:
     try:
-        _ensure_qdrant_collection()
+        _ensure_qdrant_collection_exists()
         info = qdrant_client.get_collection(settings.qdrant_collection_name)
         return {
             "collection": settings.qdrant_collection_name,
@@ -266,7 +243,7 @@ def qdrant_collection_stats() -> dict[str, Any]:
 
 
 def list_qdrant_points_for_document(document_id: str, limit: int = 100) -> list[dict[str, Any]]:
-    _ensure_qdrant_collection()
+    _ensure_qdrant_collection_exists()
     points, _ = qdrant_client.scroll(
         collection_name=settings.qdrant_collection_name,
         scroll_filter=models.Filter(

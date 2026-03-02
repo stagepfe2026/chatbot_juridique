@@ -1,7 +1,6 @@
-from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
-from bson import ObjectId
 from fastapi import HTTPException, status
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_core.documents import Document
@@ -10,12 +9,15 @@ from langchain_ollama import ChatOllama
 from langchain_qdrant import QdrantVectorStore
 
 from app.core.config import settings
-from app.database.connections import get_chat_questions_collection, get_documents_collection, qdrant_client
+from app.database.connections import qdrant_client
+from app.repositories import ChatQuestionsRepository, DocumentsRepository
 from app.schemas import SourceFile, SourceItem
 
 _embeddings = None
 _vector_store = None
 _llm = None
+_chat_questions_repo = ChatQuestionsRepository()
+_documents_repo = DocumentsRepository()
 
 
 def _get_embeddings():
@@ -80,10 +82,9 @@ def _build_source_file(sources: list[SourceItem]) -> SourceFile | None:
     if not first.documentId:
         return None
     try:
-        oid = ObjectId(first.documentId)
-    except Exception:
+        doc = _documents_repo.get_active_document_fields_by_id(first.documentId, {"filePath": 1, "title": 1})
+    except HTTPException:
         return None
-    doc = get_documents_collection().find_one({"_id": oid}, {"filePath": 1, "title": 1})
     if not doc:
         return None
     file_path = str(doc.get("filePath", "")).strip()
@@ -116,24 +117,13 @@ def ask_question(question: str) -> tuple[str, str, list[SourceItem], SourceFile 
         if not isinstance(answer, str):
             answer = str(answer)
 
-    record = {
-        "question": question.strip(),
-        "answer": answer,
-        "sources": [item.model_dump() for item in sources],
-        "sourceFile": source_file.model_dump() if source_file else None,
-        "createdAt": datetime.now(timezone.utc),
-    }
-    inserted = get_chat_questions_collection().insert_one(record)
-    return str(inserted.inserted_id), answer, sources, source_file
+    # No persistence for question/answer: return a transient ID for response contract compatibility.
+    question_id = uuid4().hex
+    return question_id, answer, sources, source_file
 
 
 def get_sources_for_question(question_id: str) -> list[SourceItem]:
-    try:
-        oid = ObjectId(question_id)
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="questionId invalide.") from exc
-
-    doc = get_chat_questions_collection().find_one({"_id": oid})
+    doc = _chat_questions_repo.get_question_record_by_id(question_id)
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question introuvable.")
 
@@ -144,12 +134,7 @@ def get_sources_for_question(question_id: str) -> list[SourceItem]:
 
 
 def get_source_file_for_question(question_id: str) -> SourceFile | None:
-    try:
-        oid = ObjectId(question_id)
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="questionId invalide.") from exc
-
-    doc = get_chat_questions_collection().find_one({"_id": oid})
+    doc = _chat_questions_repo.get_question_record_by_id(question_id)
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question introuvable.")
 

@@ -1,22 +1,30 @@
 import { useState } from "react";
 import { askQuestion } from "../../services/user.service";
-import type { AskQuestionResponse } from "../../models/chat.models";
+import type { SourceFile } from "../../models/chat.models";
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  time: string;
+  sourceFile?: SourceFile | null;
+};
 
 export default function AskQuestionPage() {
   const [question, setQuestion] = useState("");
-  const [result, setResult] = useState<AskQuestionResponse | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [questionTime, setQuestionTime] = useState<string | null>(null);
-  const [answerTime, setAnswerTime] = useState<string | null>(null);
 
   function nowAsTime() {
     return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
+
   const [greetingTime] = useState<string>(nowAsTime());
 
   async function onAsk() {
-    if (!question.trim()) {
+    const currentQuestion = question.trim();
+    if (!currentQuestion) {
       setError("Veuillez saisir une question.");
       return;
     }
@@ -24,10 +32,25 @@ export default function AskQuestionPage() {
     try {
       setLoading(true);
       setError(null);
-      setQuestionTime(nowAsTime());
-      const res = await askQuestion({ question: question.trim() });
-      setResult(res);
-      setAnswerTime(nowAsTime());
+
+      const userMessage: ChatMessage = {
+        id: `u-${Date.now()}`,
+        role: "user",
+        text: currentQuestion,
+        time: nowAsTime(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setQuestion("");
+
+      const res = await askQuestion({ question: currentQuestion });
+      const assistantMessage: ChatMessage = {
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        text: res.answer,
+        time: nowAsTime(),
+        sourceFile: res.sourceFile ?? null,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (e: unknown) {
       const message =
         typeof e === "object" && e !== null && "message" in e
@@ -49,35 +72,26 @@ export default function AskQuestionPage() {
           </div>
         </article>
 
-        {question.trim() && (
-          <article className="chat-row user">
-            <div className="chat-bubble user">
-              <p style={{ margin: 0 }}>{question}</p>
-              {questionTime && <div className="chat-time">{questionTime}</div>}
+        {messages.map((message) => (
+          <article key={message.id} className={`chat-row ${message.role}`}>
+            <div className={`chat-bubble ${message.role}${message.role === "assistant" ? " large" : ""}`}>
+              <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{message.text}</p>
+              {message.sourceFile && (
+                <a className="chat-file-card" href={message.sourceFile.downloadUrl} download={message.sourceFile.filename}>
+                  <span className="chat-file-icon">v</span>
+                  <span className="chat-file-name">{message.sourceFile.filename}</span>
+                </a>
+              )}
+              <div className="chat-time">{message.time}</div>
             </div>
           </article>
-        )}
+        ))}
 
         {loading && (
           <article className="chat-row assistant">
             <div className="chat-bubble assistant">
               <span className="chat-spinner" aria-hidden="true" />
               Generation de la reponse...
-            </div>
-          </article>
-        )}
-
-        {!loading && result && (
-          <article className="chat-row assistant">
-            <div className="chat-bubble assistant large">
-              <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{result.answer}</p>
-              {result.sourceFile && (
-                <a className="chat-file-card" href={result.sourceFile.downloadUrl} download={result.sourceFile.filename}>
-                  <span className="chat-file-icon">↧</span>
-                  <span className="chat-file-name">{result.sourceFile.filename}</span>
-                </a>
-              )}
-              {answerTime && <div className="chat-time">{answerTime}</div>}
             </div>
           </article>
         )}
@@ -88,7 +102,13 @@ export default function AskQuestionPage() {
           className="chat-input"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Tapez votre message..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (!loading) onAsk();
+            }
+          }}
+          placeholder="Posez votre question juridique..."
         />
         <div className="chat-actions">
           <button className="chat-send-btn" type="button" onClick={onAsk} disabled={loading}>
