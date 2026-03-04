@@ -1,4 +1,5 @@
 import { httpClient } from "./httpClient";
+import type { Conversation } from "../models/conversation.models";
 import type { Document, ImportDocumentForm, ImportDocumentResponse } from "../models/document.models";
 
 export async function importDocument(form: ImportDocumentForm): Promise<ImportDocumentResponse> {
@@ -32,4 +33,9 @@ export async function listDocuments(): Promise<Document[]> {
   if (payload && Array.isArray(payload.data)) return payload.data;
   if (payload && Array.isArray(payload.items)) return payload.items;
   return [];
+}
+
+export async function listConversations(): Promise<Conversation[]> {
+  const res = await httpClient.get<Conversation[]>("/admin/conversations");
+  return Array.isArray(res.data) ? res.data : [];
 }

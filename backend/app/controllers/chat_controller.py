@@ -3,7 +3,11 @@ from app.services.chat_service import create_chat_question, download_document_fi
 
 
 def create_question_controller(payload: AskQuestionRequest):
-    return create_chat_question(payload.question)
+    return create_chat_question(payload.question, conversation_id=payload.conversationId)
+
+
+def create_question_with_user_controller(payload: AskQuestionRequest, user_id: str | None):
+    return create_chat_question(payload.question, user_id=user_id, conversation_id=payload.conversationId)
 
 
 def get_question_sources_controller(question_id: str):

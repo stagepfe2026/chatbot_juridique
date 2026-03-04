@@ -1,6 +1,6 @@
-from app.rag.pipeline import _build_prompt
+from app.rag.prompts import FINAL_ANSWER_PROMPT_FR
 
 
 def build():
-    # Construit le template de prompt utilisé par le RAG.
-    return _build_prompt()
+    # Construit le template de prompt utilise par le RAG.
+    return FINAL_ANSWER_PROMPT_FR

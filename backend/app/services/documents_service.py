@@ -58,15 +58,26 @@ def import_document_and_index(
     payload = file.file.read()
     destination.write_bytes(payload)
 
-    model = DocumentModel.new_processing(
-        title=title,
-        category=category.value,
-        description=description,
-        file_path=str(destination),
-        file_size=len(payload),
-        file_type=file.content_type or "application/octet-stream",
-    )
-    document_id = _documents_repo.create_document(model)
+    existing_doc = _documents_repo.find_active_by_title_and_category(title=title, category=category.value)
+    if existing_doc and existing_doc.id:
+        document_id = existing_doc.id
+        _documents_repo.update_document_import_payload(
+            document_id,
+            file_path=str(destination),
+            file_size=len(payload),
+            file_type=file.content_type or "application/octet-stream",
+            description=description,
+        )
+    else:
+        model = DocumentModel.new_processing(
+            title=title,
+            category=category.value,
+            description=description,
+            file_path=str(destination),
+            file_size=len(payload),
+            file_type=file.content_type or "application/octet-stream",
+        )
+        document_id = _documents_repo.create_document(model)
 
     try:
         chunks_count = index_document_by_id(document_id)

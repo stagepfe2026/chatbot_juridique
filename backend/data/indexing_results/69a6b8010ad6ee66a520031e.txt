@@ -1,0 +1,10 @@
+document_id: 69a6b8010ad6ee66a520031e
+title: Articles 63 a 72 Avantages fiscaux COMPLET
+status: FAILED
+indexed_points: 0
+chunks_total: 0
+chunks_raw_total: 0
+error: [E050] Can't find model 'fr_core_news_sm'. It doesn't seem to be a Python package or a valid path to a data directory.
+
+=== CHUNKS PREVIEW (first 10) ===
+

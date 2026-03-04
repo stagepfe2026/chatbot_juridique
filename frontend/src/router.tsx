@@ -1,26 +1,41 @@
-import { Navigate, createBrowserRouter } from "react-router-dom";
-import { adminRoutes } from "./admin/routes/adminRoutes";
+import { createBrowserRouter } from "react-router-dom";
 import AdminLayout from "./admin/layouts/AdminLayout";
+import { adminRoutes } from "./admin/routes/adminRoutes";
+import { PublicOnlyRoute, RequireAuth, RoleHomeRedirect } from "./auth/guards";
+import LoginPage from "./pages/LoginPage";
 import UserLayout from "./user/layouts/UserLayout";
 import { userRoutes } from "./user/routes/userRoutes";
 
-// Router principal: redirection racine + espaces admin et user.
+// Router principal: login public + espaces admin/user proteges par role.
 export const router = createBrowserRouter([
   {
-    // Redirige vers le chat user par défaut.
     path: "/",
-    element: <Navigate to="/user/chat" replace />,
+    element: <RoleHomeRedirect />,
   },
   {
-    // Zone administration (gestion des documents).
+    path: "/login",
+    element: (
+      <PublicOnlyRoute>
+        <LoginPage />
+      </PublicOnlyRoute>
+    ),
+  },
+  {
     path: "/admin",
-    element: <AdminLayout />,
+    element: (
+      <RequireAuth allowedRoles={["ADMIN"]}>
+        <AdminLayout />
+      </RequireAuth>
+    ),
     children: adminRoutes,
   },
   {
-    // Zone utilisateur (questions et sources).
     path: "/user",
-    element: <UserLayout />,
+    element: (
+      <RequireAuth allowedRoles={["FINANCE_USER"]}>
+        <UserLayout />
+      </RequireAuth>
+    ),
     children: userRoutes,
   },
 ]);

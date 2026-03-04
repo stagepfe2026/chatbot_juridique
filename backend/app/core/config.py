@@ -4,13 +4,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # Préfixe API commun à toutes les routes backend.
+    # Prefixe API commun a toutes les routes backend.
     app_name: str = "Chatbot V1 API"
     api_prefix: str = "/api"
 
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_db_name: str = "chatbot_juridique"
     mongodb_documents_collection: str = "documents"
+    mongodb_users_collection: str = "users"
+    mongodb_sessions_collection: str = "sessions"
+    mongodb_conversations_collection: str = "conversations"
+    mongodb_messages_collection: str = "messages"
 
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str | None = None
@@ -21,6 +25,10 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
     retriever_k: int = 5
+    retriever_min_score: float = 0.5
+    memory_last_messages_limit: int = 8
+    memory_recent_messages_max_chars: int = 4000
+    summary_recent_messages_limit: int = 8
 
     chunk_size: int = 900
     chunk_overlap: int = 150
@@ -28,6 +36,11 @@ class Settings(BaseSettings):
 
     uploads_dir: str = "data/uploads"
     allowed_extensions: tuple[str, ...] = (".pdf", ".docx")
+
+    auth_session_minutes: int = 15
+    auth_session_cookie_name: str = "chatbot_session"
+    auth_cookie_secure: bool = False
+    cors_origins: tuple[str, ...] = ("http://localhost:5173", "http://127.0.0.1:5173")
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -42,7 +55,7 @@ class Settings(BaseSettings):
 
     @property
     def indexing_results_path(self) -> Path:
-        # Chemin absolu des logs de résultats d'indexation.
+        # Chemin absolu des logs de resultats d'indexation.
         return Path(self.indexing_results_dir).resolve()
 
 

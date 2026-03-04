@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
+import threading
 
 from fastapi import HTTPException, status
 from langchain_community.embeddings import FastEmbedEmbeddings
@@ -10,8 +11,17 @@ from langchain_qdrant import QdrantVectorStore
 
 from app.core.config import settings
 from app.database.connections import qdrant_client
+from app.models import ChatQuestionModel
+from app.rag.prompts import FINAL_ANSWER_PROMPT_FR, NO_INFO_ANSWER_FR
 from app.repositories import ChatQuestionsRepository, DocumentsRepository
 from app.schemas import SourceFile, SourceItem
+from app.services.conversation_memory_service import (
+    ensure_conversation,
+    get_conversation_summary,
+    get_last_messages,
+    save_message,
+    update_conversation_summary,
+)
 
 _embeddings = None
 _vector_store = None
@@ -21,7 +31,6 @@ _documents_repo = DocumentsRepository()
 
 
 def _get_embeddings():
-    # Initialise le modèle d'embedding une seule fois.
     global _embeddings
     if _embeddings is None:
         _embeddings = FastEmbedEmbeddings(model_name=settings.embedding_model)
@@ -40,7 +49,6 @@ def _get_vector_store():
 
 
 def _get_llm():
-    # Initialise le client LLM (Ollama) une seule fois.
     global _llm
     if _llm is None:
         _llm = ChatOllama(
@@ -51,25 +59,38 @@ def _get_llm():
     return _llm
 
 
-def _build_prompt() -> ChatPromptTemplate:
-    return ChatPromptTemplate.from_template(
-        "Tu es un assistant juridique. Reponds uniquement a partir du CONTEXTE fourni.\n"
-        "Si l'information n'est pas dans le contexte, dis clairement que tu ne sais pas.\n"
-        "Reponse concise, structuree et en francais.\n\n"
-        "QUESTION:\n{question}\n\n"
-        "CONTEXTE:\n{context}\n"
-    )
+def _retrieve_relevant_docs(question: str) -> list[Document]:
+    try:
+        scored = _get_vector_store().similarity_search_with_score(question, k=settings.retriever_k)
+    except Exception:
+        retriever = _get_vector_store().as_retriever(search_kwargs={"k": settings.retriever_k})
+        return retriever.invoke(question)
+
+    docs: list[Document] = []
+    for doc, score in scored:
+        try:
+            numeric_score = float(score)
+        except Exception:
+            continue
+        if numeric_score >= settings.retriever_min_score:
+            docs.append(doc)
+    return docs
 
 
 def _to_source_items(docs: list[Document]) -> list[SourceItem]:
     items: list[SourceItem] = []
     for doc in docs:
         metadata = doc.metadata or {}
+        chunk_index = metadata.get("chunk_index")
+        page = metadata.get("page")
+        section = f"chunk_{chunk_index}" if chunk_index is not None else None
         items.append(
             SourceItem(
                 documentId=str(metadata.get("document_id", "")),
                 title=str(metadata.get("title", "Document juridique")),
                 excerpt=doc.page_content[:500],
+                section=section,
+                page=str(page) if page is not None else None,
             )
         )
     return items
@@ -82,11 +103,12 @@ def _build_source_file(sources: list[SourceItem]) -> SourceFile | None:
     if not first.documentId:
         return None
     try:
-        doc = _documents_repo.get_active_document_fields_by_id(first.documentId, {"filePath": 1, "title": 1})
+        doc = _documents_repo.get_active_document_fields_by_id(first.documentId, {"filePath": 1})
     except HTTPException:
         return None
     if not doc:
         return None
+
     file_path = str(doc.get("filePath", "")).strip()
     if not file_path:
         return None
@@ -98,28 +120,237 @@ def _build_source_file(sources: list[SourceItem]) -> SourceFile | None:
     )
 
 
-def ask_question(question: str) -> tuple[str, str, list[SourceItem], SourceFile | None]:
-    # Orchestration RAG: retrieve context -> générer réponse -> persister en Mongo.
+def _to_plain_dict(data: object) -> dict:
+    if hasattr(data, "model_dump"):
+        return data.model_dump()
+    return data.dict()  # type: ignore[attr-defined]
+
+
+def _serialize_messages(messages: list[dict[str, str]]) -> str:
+    rendered = "\n".join([f"{item['role']}: {item['content']}" for item in messages])
+    max_chars = max(1000, settings.memory_recent_messages_max_chars)
+    if len(rendered) <= max_chars:
+        return rendered
+    return rendered[-max_chars:]
+
+
+def _is_summary_request(question: str) -> bool:
+    normalized = question.lower().strip()
+    triggers = (
+        "resumer",
+        "résumer",
+        "resume",
+        "résumé",
+        "depuis le debut",
+        "depuis le début",
+        "ce que tu m'as deja explique",
+        "ce que tu m'as déjà expliqué",
+    )
+    return any(token in normalized for token in triggers)
+
+
+def _is_small_talk(question: str) -> bool:
+    normalized = " ".join(question.lower().strip().split())
+    if not normalized:
+        return False
+
+    exact_triggers = {
+        "bonjour",
+        "bonsoir",
+        "salut",
+        "hello",
+        "hey",
+        "coucou",
+        "merci",
+        "merci beaucoup",
+        "ok",
+        "ok merci",
+        "d'accord",
+        "ca va",
+        "ca va ?",
+        "comment ca va",
+        "comment vas tu",
+        "qui es tu",
+        "qui es-tu",
+    }
+    if normalized in exact_triggers:
+        return True
+
+    small_talk_starts = (
+        "bonjour",
+        "bonsoir",
+        "salut",
+        "hello",
+        "merci",
+        "qui es",
+        "comment ca va",
+        "comment vas",
+    )
+    if any(normalized.startswith(prefix) for prefix in small_talk_starts):
+        return True
+
+    legal_terms = (
+        "article",
+        "loi",
+        "code",
+        "impot",
+        "fiscal",
+        "taxe",
+        "tva",
+        "societe",
+        "contrat",
+        "succession",
+        "divorce",
+        "bail",
+        "export",
+        "deduction",
+    )
+    if any(term in normalized for term in legal_terms):
+        return False
+
+    # Very short conversational messages should not trigger RAG retrieval.
+    words = [word for word in normalized.replace("?", " ").replace("!", " ").split(" ") if word]
+    return len(words) <= 3
+
+
+def _build_small_talk_answer(question: str) -> str:
+    normalized = question.lower().strip()
+    if "merci" in normalized:
+        return "Avec plaisir. Si vous avez une question juridique precise, je suis la pour vous aider."
+    if "qui es" in normalized:
+        return "Je suis votre assistant juridique. Je reponds aux questions a partir des documents disponibles."
+    if "ca va" in normalized or "vas tu" in normalized:
+        return "Je vais bien, merci. Quelle question juridique souhaitez-vous traiter ?"
+    return "Bonjour. Je peux vous aider sur vos questions juridiques basees sur vos documents."
+
+
+def _build_memory_only_answer(summary: str, last_messages: list[dict[str, str]]) -> str:
+    if summary.strip():
+        return "Voici le resume de notre conversation jusqu'ici :\n\n" + summary.strip()
+
+    user_messages = [m["content"] for m in last_messages if m.get("role") == "user"][-5:]
+    if not user_messages:
+        return "Je n'ai pas encore assez d'elements pour faire un resume de la conversation."
+
+    lines = "\n".join([f"- {msg}" for msg in user_messages])
+    return "Je n'ai pas encore de resume consolide. Voici les derniers points abordes :\n" + lines
+
+
+def _update_summary_async(conversation_id: str) -> None:
+    def _runner():
+        try:
+            update_conversation_summary(conversation_id)
+        except Exception:
+            # Non bloquant: on ignore les erreurs de resume.
+            return
+
+    threading.Thread(target=_runner, daemon=True).start()
+
+
+def _build_rag_context(docs: list[Document]) -> str:
+    if not docs:
+        return ""
+    blocks: list[str] = []
+    for index, doc in enumerate(docs, start=1):
+        metadata = doc.metadata or {}
+        title = str(metadata.get("title", "Document juridique"))
+        document_id = str(metadata.get("document_id", ""))
+        chunk_index = metadata.get("chunk_index")
+        section = f"chunk_{chunk_index}" if chunk_index is not None else "n/a"
+        page = metadata.get("page")
+        page_label = str(page) if page is not None else "n/a"
+        blocks.append(
+            "\n".join(
+                [
+                    f"[Source {index}]",
+                    f"document: {title} (id: {document_id})",
+                    f"section: {section}",
+                    f"page: {page_label}",
+                    f"content: {doc.page_content}",
+                ]
+            )
+        )
+    return "\n\n".join(blocks)
+
+
+def _generate_answer(*, summary: str, last_messages: list[dict[str, str]], rag_context: str, user_question: str) -> str:
+    if not rag_context.strip():
+        return NO_INFO_ANSWER_FR
+
+    prompt = ChatPromptTemplate.from_template(FINAL_ANSWER_PROMPT_FR).format_messages(
+        summary=summary or "(vide)",
+        last_messages=_serialize_messages(last_messages),
+        rag_context=rag_context,
+        user_question=user_question,
+    )
+    try:
+        answer = _get_llm().invoke(prompt).content
+    except Exception:
+        return NO_INFO_ANSWER_FR
+
+    rendered = str(answer).strip()
+    if not rendered:
+        return NO_INFO_ANSWER_FR
+    return rendered
+
+
+def ask_question(
+    question: str,
+    user_id: str | None = None,
+    conversation_id: str | None = None,
+) -> tuple[str, str, list[SourceItem], SourceFile | None, str]:
     if not question.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Question vide.")
 
-    retriever = _get_vector_store().as_retriever(search_kwargs={"k": settings.retriever_k})
-    docs = retriever.invoke(question.strip())
-    sources = _to_source_items(docs)
-    source_file = _build_source_file(sources)
+    asked_at = datetime.now(timezone.utc)
+    resolved_conversation_id = ensure_conversation(conversation_id, user_id=user_id)
 
-    if not docs:
-        answer = "Je ne trouve pas d'information pertinente dans les documents indexes."
+    save_message(resolved_conversation_id, "user", question.strip())
+    last_messages = get_last_messages(resolved_conversation_id, settings.memory_last_messages_limit)
+    summary = get_conversation_summary(resolved_conversation_id)
+
+    docs: list[Document] = []
+    sources: list[SourceItem] = []
+    source_file: SourceFile | None = None
+    if _is_summary_request(question):
+        answer = _build_memory_only_answer(summary, last_messages)
+    elif _is_small_talk(question):
+        answer = _build_small_talk_answer(question)
     else:
-        context = "\n\n".join([doc.page_content for doc in docs])
-        prompt = _build_prompt().format_messages(question=question.strip(), context=context)
-        answer = _get_llm().invoke(prompt).content
-        if not isinstance(answer, str):
-            answer = str(answer)
+        docs = _retrieve_relevant_docs(question.strip())
+        sources = _to_source_items(docs)
+        source_file = _build_source_file(sources)
+        rag_context = _build_rag_context(docs)
 
-    # No persistence for question/answer: return a transient ID for response contract compatibility.
-    question_id = uuid4().hex
-    return question_id, answer, sources, source_file
+        answer = _generate_answer(
+            summary=summary,
+            last_messages=last_messages,
+            rag_context=rag_context,
+            user_question=question.strip(),
+        )
+
+    used_document_context = bool(sources) and answer.strip() != NO_INFO_ANSWER_FR
+    if not used_document_context:
+        sources = []
+        source_file = None
+
+    save_message(resolved_conversation_id, "assistant", answer)
+    _update_summary_async(resolved_conversation_id)
+
+    answered_at = datetime.now(timezone.utc)
+    question_model = ChatQuestionModel.new(
+        question=question.strip(),
+        answer=answer,
+        sources=[_to_plain_dict(source) for source in sources],
+        source_file=_to_plain_dict(source_file) if source_file else None,
+        asked_at=asked_at,
+        answered_at=answered_at,
+        user_id=user_id,
+        conversation_id=resolved_conversation_id,
+    )
+    question_id = _chat_questions_repo.create_question_record(question_model)
+
+    return question_id, answer, sources, source_file, resolved_conversation_id
 
 
 def get_sources_for_question(question_id: str) -> list[SourceItem]:

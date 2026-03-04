@@ -17,6 +17,38 @@ class DocumentsRepository:
         inserted = get_documents_collection().insert_one(model.to_mongo_insert())
         return str(inserted.inserted_id)
 
+    def find_active_by_title_and_category(self, *, title: str, category: str) -> DocumentModel | None:
+        raw = get_documents_collection().find_one(
+            {"title": title.strip(), "category": category, "deletedAt": None},
+            sort=[("createdAt", -1)],
+        )
+        if not raw:
+            return None
+        return DocumentModel.from_mongo(raw)
+
+    def update_document_import_payload(
+        self,
+        document_id: str,
+        *,
+        file_path: str,
+        file_size: int,
+        file_type: str,
+        description: str,
+    ) -> None:
+        get_documents_collection().update_one(
+            {"_id": self._parse_document_id(document_id)},
+            {
+                "$set": {
+                    "filePath": file_path,
+                    "fileSize": file_size,
+                    "fileType": file_type,
+                    "description": description.strip(),
+                    "documentStatus": DocumentStatus.PROCESSING.value,
+                    "indexError": None,
+                }
+            },
+        )
+
     def get_active_document_raw_by_id(self, document_id: str) -> dict[str, Any] | None:
         return get_documents_collection().find_one({"_id": self._parse_document_id(document_id), "deletedAt": None})
 

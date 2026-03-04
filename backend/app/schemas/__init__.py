@@ -48,6 +48,7 @@ class IndexManyResponse(BaseModel):
 
 
 class AskQuestionRequest(BaseModel):
+    conversationId: str | None = None
     question: str
 
 
@@ -55,6 +56,8 @@ class SourceItem(BaseModel):
     documentId: str
     title: str
     excerpt: str
+    section: str | None = None
+    page: str | None = None
 
 
 class SourceFile(BaseModel):
@@ -65,5 +68,58 @@ class SourceFile(BaseModel):
 
 class AskQuestionResponse(BaseModel):
     questionId: str
+    conversationId: str
     answer: str
+    sources: list[SourceItem] = []
     sourceFile: SourceFile | None = None
+
+
+class ConversationOut(BaseModel):
+    id: str
+    question: str
+    answer: str
+    askedAt: datetime
+    answeredAt: datetime
+    createdAt: datetime
+    userId: str | None = None
+
+
+class ConversationSummaryOut(BaseModel):
+    id: str
+    title: str
+    preview: str
+    summary: str
+    createdAt: datetime
+    updatedAt: datetime
+    messageCount: int
+
+
+class ConversationMessageOut(BaseModel):
+    id: str
+    conversationId: str
+    role: str
+    content: str
+    createdAt: datetime
+
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    FINANCE_USER = "FINANCE_USER"
+
+
+class AuthUser(BaseModel):
+    id: str
+    nom: str
+    prenom: str
+    email: str
+    role: UserRole
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    user: AuthUser
+    sessionExpiresAt: datetime

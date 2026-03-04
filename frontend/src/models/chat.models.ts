@@ -1,4 +1,5 @@
 export interface AskQuestionRequest {
+  conversationId?: string;
   question: string;
 }
 
@@ -16,6 +17,8 @@ export interface SourceFile {
 
 export interface AskQuestionResponse {
   questionId: string;
+  conversationId: string;
   answer: string;
+  sources?: SourceItem[];
   sourceFile?: SourceFile | null;
 }

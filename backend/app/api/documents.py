@@ -1,5 +1,6 @@
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
+from app.auth import require_role
 from app.controllers.documents_controller import (
     document_points_controller,
     import_document_controller,
@@ -9,9 +10,14 @@ from app.controllers.documents_controller import (
     qdrant_health_controller,
     qdrant_stats_controller,
 )
+from app.models import UserRole
 from app.schemas import DocumentCategory, ImportDocumentResponse, IndexManyResponse
 
-router = APIRouter(prefix="/admin/documents", tags=["documents"])
+router = APIRouter(
+    prefix="/admin/documents",
+    tags=["documents"],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
 
 
 @router.get("")

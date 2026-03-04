@@ -18,3 +18,19 @@ def get_documents_collection():
 
 def get_chat_questions_collection():
     return mongo_db["chat_questions"]
+
+
+def get_users_collection():
+    return mongo_db[settings.mongodb_users_collection]
+
+
+def get_sessions_collection():
+    return mongo_db[settings.mongodb_sessions_collection]
+
+
+def get_conversations_collection():
+    return mongo_db[settings.mongodb_conversations_collection]
+
+
+def get_messages_collection():
+    return mongo_db[settings.mongodb_messages_collection]

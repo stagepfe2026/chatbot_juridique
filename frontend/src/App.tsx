@@ -1,11 +1,13 @@
 import { RouterProvider } from "react-router-dom";
+import { AuthProvider } from "./auth/AuthContext";
 import { router } from "./router";
 import "./App.css";
 
 function App() {
   return (
-    // Monte le router global pour toute l'application.
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   );
 }
 

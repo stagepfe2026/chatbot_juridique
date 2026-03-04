@@ -10,9 +10,23 @@ from app.schemas import AskQuestionResponse, SourceItem
 _documents_repo = DocumentsRepository()
 
 
-def create_chat_question(question: str) -> AskQuestionResponse:
-    question_id, answer, _, source_file = ask_question(question)
-    return AskQuestionResponse(questionId=question_id, answer=answer, sourceFile=source_file)
+def create_chat_question(
+    question: str,
+    user_id: str | None = None,
+    conversation_id: str | None = None,
+) -> AskQuestionResponse:
+    question_id, answer, sources, source_file, resolved_conversation_id = ask_question(
+        question,
+        user_id=user_id,
+        conversation_id=conversation_id,
+    )
+    return AskQuestionResponse(
+        questionId=question_id,
+        conversationId=resolved_conversation_id,
+        answer=answer,
+        sources=sources,
+        sourceFile=source_file,
+    )
 
 
 def list_question_sources(question_id: str) -> list[SourceItem]:
