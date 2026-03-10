@@ -48,7 +48,7 @@ def get_conversation_summary(conversation_id: str) -> str:
         return ""
     return conversation.summary
 
-
+#préparer les messages pour le prompt de résumé
 def _format_recent_messages(messages: list[dict[str, str]]) -> str:
     rendered = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
     max_chars = max(500, settings.memory_recent_messages_max_chars)
@@ -56,7 +56,7 @@ def _format_recent_messages(messages: list[dict[str, str]]) -> str:
         return rendered
     return rendered[-max_chars:]
 
-
+#extrait les derniéres questions utilsateur 
 def _build_coverage_hints(messages: list[dict[str, str]]) -> str:
     user_questions = [m["content"].strip() for m in messages if m.get("role") == "user" and m.get("content")]
     if not user_questions:
@@ -64,7 +64,7 @@ def _build_coverage_hints(messages: list[dict[str, str]]) -> str:
     recent = user_questions[-4:]
     return "\n".join([f"- {item}" for item in recent])
 
-
+#Nettoie le résumé généré par le LLM.(duplications , lignes vide)
 def _clean_summary_text(raw: str) -> str:
     text = raw.strip()
     if not text:
@@ -97,7 +97,7 @@ def _clean_summary_text(raw: str) -> str:
 
     return "\n".join(deduped[:10]).strip()
 
-
+#Met à jour le résumé de la conversation en se basant sur les derniers messages et l'ancien résumé.
 def update_conversation_summary(conversation_id: str) -> str:
     previous_summary = get_conversation_summary(conversation_id)
     recent_messages = get_last_messages(conversation_id, settings.summary_recent_messages_limit)

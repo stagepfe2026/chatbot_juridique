@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 import threading
 
 from fastapi import HTTPException, status
@@ -12,7 +13,7 @@ from langchain_qdrant import QdrantVectorStore
 from app.core.config import settings
 from app.database.connections import qdrant_client
 from app.models import ChatQuestionModel
-from app.rag.prompts import FINAL_ANSWER_PROMPT_FR, NO_INFO_ANSWER_FR
+from app.rag.prompts import FINAL_ANSWER_PROMPT_FR, LEGAL_ANSWER_REVIEW_PROMPT_FR, NO_INFO_ANSWER_FR
 from app.repositories import ChatQuestionsRepository, DocumentsRepository
 from app.schemas import SourceFile, SourceItem
 from app.services.conversation_memory_service import (
@@ -273,6 +274,50 @@ def _build_rag_context(docs: list[Document]) -> str:
     return "\n\n".join(blocks)
 
 
+def _extract_article_refs_from_context(rag_context: str) -> list[str]:
+    found = re.findall(r"\barticle\s+(\d+)\b", rag_context, flags=re.IGNORECASE)
+    unique: list[str] = []
+    for value in found:
+        if value not in unique:
+            unique.append(value)
+    return unique
+
+
+def _sanitize_answer_references(answer: str, rag_context: str) -> str:
+    rendered = answer.strip()
+    if not rendered:
+        return rendered
+
+    # Avoid vague references like "sources 1, 2 et 3" in legal answers.
+    if re.search(r"\bsources?\s*\d", rendered, flags=re.IGNORECASE):
+        articles = _extract_article_refs_from_context(rag_context)
+        if articles:
+            rendered = re.sub(
+                r"\bsources?\s*[\d,\set]+",
+                f"articles {', '.join(articles[:6])}",
+                rendered,
+                flags=re.IGNORECASE,
+            )
+    return rendered
+
+
+def _review_answer_grounding(*, rag_context: str, user_question: str, draft_answer: str) -> str:
+    prompt = ChatPromptTemplate.from_template(LEGAL_ANSWER_REVIEW_PROMPT_FR).format_messages(
+        rag_context=rag_context,
+        user_question=user_question,
+        draft_answer=draft_answer,
+    )
+    try:
+        reviewed = _get_llm().invoke(prompt).content
+    except Exception:
+        return draft_answer
+
+    rendered = str(reviewed).strip()
+    if not rendered:
+        return draft_answer
+    return rendered
+
+
 def _generate_answer(*, summary: str, last_messages: list[dict[str, str]], rag_context: str, user_question: str) -> str:
     if not rag_context.strip():
         return NO_INFO_ANSWER_FR
@@ -291,7 +336,15 @@ def _generate_answer(*, summary: str, last_messages: list[dict[str, str]], rag_c
     rendered = str(answer).strip()
     if not rendered:
         return NO_INFO_ANSWER_FR
-    return rendered
+    reviewed = _review_answer_grounding(
+        rag_context=rag_context,
+        user_question=user_question,
+        draft_answer=rendered,
+    )
+    if reviewed == NO_INFO_ANSWER_FR:
+        return reviewed
+    sanitized = _sanitize_answer_references(reviewed, rag_context)
+    return sanitized or NO_INFO_ANSWER_FR
 
 
 def ask_question(

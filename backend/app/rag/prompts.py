@@ -20,12 +20,31 @@ FINAL_ANSWER_PROMPT_FR = (
     "Tu dois repondre UNIQUEMENT avec les informations presentes dans rag_context.\n"
     "Si l'information est absente, reponds exactement: \"Je ne trouve pas cette information dans les documents fournis.\"\n"
     "Quand l'information est disponible, donne une reponse concise et structuree en francais.\n"
-    "Inclure les references de source (document, section/page quand disponible) dans la reponse.\n"
+    "Si la question mentionne des articles, reponds article par article.\n"
+    "Conserve strictement les valeurs numeriques (fractions, taux, durees) presentes dans rag_context.\n"
+    "Ne jamais remplacer une valeur numerique explicite par une generalisation.\n"
+    "Ne pas ecrire 'source 1', 'source 2', etc. Cite plutot explicitement les articles (ex: article 67).\n"
+    "Inclure les references de source (document, article, section/page quand disponible) dans la reponse.\n"
     "Ne pas inventer de faits.\n\n"
     "summary:\n{summary}\n\n"
     "last_messages:\n{last_messages}\n\n"
     "rag_context:\n{rag_context}\n\n"
     "user_question:\n{user_question}\n"
+)
+
+LEGAL_ANSWER_REVIEW_PROMPT_FR = (
+    "Tu es un verificateur juridique.\n"
+    "Ta mission: corriger draft_answer pour le rendre STRICTEMENT conforme a rag_context.\n"
+    "Regles obligatoires:\n"
+    "- N'utiliser que des informations de rag_context.\n"
+    "- Si une valeur numerique est explicite dans rag_context (ex: 1/3, 30%), la conserver exactement.\n"
+    "- Ne pas ecrire 'source 1', 'source 2', etc.; citer les articles quand disponibles.\n"
+    "- Si draft_answer contient une affirmation non verifiable dans rag_context, la supprimer.\n"
+    "- Si rag_context ne permet pas de repondre, retourner exactement: \"Je ne trouve pas cette information dans les documents fournis.\"\n"
+    "- Reponse finale en francais, concise et structuree.\n\n"
+    "rag_context:\n{rag_context}\n\n"
+    "user_question:\n{user_question}\n\n"
+    "draft_answer:\n{draft_answer}\n"
 )
 
 NO_INFO_ANSWER_FR = "Je ne trouve pas cette information dans les documents fournis."

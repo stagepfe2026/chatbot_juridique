@@ -1,4 +1,4 @@
-document_id: 69a06659e9d2cd44e88235af
+document_id: 69a89b4233e97bb3287c7bbf
 title: Articles 73 a 77 et suivants COMPLET
 status: INDEXED
 indexed_points: 18
