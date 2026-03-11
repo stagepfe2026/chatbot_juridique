@@ -15,6 +15,7 @@ class DocumentModel:
     file_size: int
     file_type: str
     created_at: datetime
+    is_favored: bool = False
     deleted_at: datetime | None = None
     indexed_at: datetime | None = None
     chunks_count: int | None = None
@@ -42,6 +43,7 @@ class DocumentModel:
             file_size=file_size,
             file_type=file_type,
             created_at=datetime.now(timezone.utc),
+            is_favored=False,
         )
 
     @classmethod
@@ -56,6 +58,7 @@ class DocumentModel:
             file_size=int(raw.get("fileSize", 0)),
             file_type=str(raw.get("fileType", "application/octet-stream")),
             created_at=raw.get("createdAt") or datetime.now(timezone.utc),
+            is_favored=bool(raw.get("isFavored", False)),
             deleted_at=raw.get("deletedAt"),
             indexed_at=raw.get("indexedAt"),
             chunks_count=raw.get("chunksCount"),
@@ -72,6 +75,7 @@ class DocumentModel:
             "filePath": self.file_path,
             "fileSize": self.file_size,
             "fileType": self.file_type,
+            "isFavored": self.is_favored,
             "createdAt": self.created_at,
             "deletedAt": self.deleted_at,
             "indexedAt": self.indexed_at,
@@ -89,6 +93,7 @@ class DocumentModel:
             filePath=self.file_path,
             fileSize=self.file_size,
             fileType=self.file_type,
+            isFavored=self.is_favored,
             createdAt=self.created_at,
             deletedAt=self.deleted_at,
             indexedAt=self.indexed_at,

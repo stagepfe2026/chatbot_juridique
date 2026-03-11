@@ -112,6 +112,7 @@ def index_document_by_id(document_id: str) -> int:
     try:
         raw = _resolve_document_text_content(doc)
         cleaned = clean_text(raw)
+        _documents_repo.update_document_content(document_id, content=cleaned)
         chunks_raw = chunk_text(cleaned)
         chunks = unique_chunks(chunks_raw)
         if not chunks:
@@ -268,3 +269,4 @@ def list_qdrant_points_for_document(document_id: str, limit: int = 100) -> list[
             }
         )
     return serialized
+

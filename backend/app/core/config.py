@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     indexing_results_dir: str = "data/indexing_results"
 
     uploads_dir: str = "data/uploads"
-    allowed_extensions: tuple[str, ...] = (".pdf", ".docx")
+    pdf_cache_dir: str = "data/pdf_cache"
+    allowed_extensions: tuple[str, ...] = (".pdf", ".docx", ".doc")
 
     auth_session_minutes: int = 15
     auth_session_cookie_name: str = "chatbot_session"
@@ -58,5 +59,10 @@ class Settings(BaseSettings):
         # Chemin absolu des logs de resultats d'indexation.
         return Path(self.indexing_results_dir).resolve()
 
+    @property
+    def pdf_cache_path(self) -> Path:
+        return Path(self.pdf_cache_dir).resolve()
+
 
 settings = Settings()
+

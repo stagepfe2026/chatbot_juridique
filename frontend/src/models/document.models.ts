@@ -17,6 +17,23 @@ export interface Document {
   fileType: string;
   createdAt: string;
   deletedAt?: string;
+  isFavored?: boolean;
+}
+
+export interface DocumentSearchResult {
+  id: string;
+  title: string;
+  category: DocumentCategory;
+  description: string;
+  excerpt: string;
+  isFavored: boolean;
+  downloadUrl: string;
+  createdAt?: string | null;
+}
+
+export interface DocumentFavoriteResponse {
+  documentId: string;
+  isFavored: boolean;
 }
 
 export interface ImportDocumentForm {

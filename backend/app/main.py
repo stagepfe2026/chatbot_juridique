@@ -5,6 +5,7 @@ from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.conversations import router as conversations_router
 from app.api.documents import router as documents_router
+from app.api.user_documents import router as user_documents_router
 from app.auth import ensure_auth_indexes
 from app.core.config import settings
 from app.middlewares import AuthSessionMiddleware
@@ -29,6 +30,7 @@ app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(documents_router, prefix=settings.api_prefix)
 app.include_router(chat_router, prefix=settings.api_prefix)
 app.include_router(conversations_router, prefix=settings.api_prefix)
+app.include_router(user_documents_router, prefix=settings.api_prefix)
 
 
 @app.on_event("startup")

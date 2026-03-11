@@ -26,11 +26,32 @@ class DocumentOut(BaseModel):
     filePath: str
     fileSize: int
     fileType: str
+    isFavored: bool = False
     createdAt: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     deletedAt: datetime | None = None
     indexedAt: datetime | None = None
     chunksCount: int | None = None
     indexError: str | None = None
+
+
+class DocumentSearchResult(BaseModel):
+    id: str
+    title: str
+    category: DocumentCategory
+    description: str = ""
+    excerpt: str = ""
+    isFavored: bool = False
+    downloadUrl: str = ""
+    createdAt: datetime | None = None
+
+
+class DocumentFavoriteUpdate(BaseModel):
+    isFavored: bool
+
+
+class DocumentFavoriteResponse(BaseModel):
+    documentId: str
+    isFavored: bool
 
 
 class ImportDocumentResponse(BaseModel):

@@ -799,7 +799,7 @@
   min-width: 0;
 }
 
-.legal-topbar {
+/* .legal-topbar {
   height: 62px;
   border-bottom: 1px solid var(--legal-border);
   background: var(--legal-panel);
@@ -807,14 +807,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
-}
+} */
 
-.topbar-left,
+/* .topbar-left,
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 10px;
-}
+} */
 
 .icon-btn {
   width: 32px;
@@ -845,7 +845,7 @@
   display: block;
   pointer-events: none;
 }
-
+/* 
 .brand-logo {
   width: 30px;
   height: 30px;
@@ -855,12 +855,12 @@
   place-items: center;
   color: #fff;
   box-shadow: var(--legal-shadow);
-}
+} */
 
-.brand-title {
+/* .brand-title {
   font-size: clamp(1rem, 1.5vw, 1.25rem);
   font-weight: 700;
-}
+} */
 
 .legal-chat-area {
   flex: 1;
@@ -1124,4 +1124,1631 @@
   .composer-panel {
     padding: 8px;
   }
+}
+
+.user-home {
+  display: grid;
+  gap: 24px;
+}
+
+.user-home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 18px;
+  background: radial-gradient(circle at 10% 20%, rgba(218, 0, 55, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(0, 44, 95, 0.12), transparent 40%),
+    #f7f8fb;
+  border: 1px solid #d8deea;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 24px rgba(8, 22, 44, 0.08);
+}
+
+.user-home-hero-card h1 {
+  margin: 8px 0 6px;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.user-home-hero-card p {
+  margin: 0 0 16px;
+  color: #5b6579;
+  max-width: 520px;
+}
+
+.user-home-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #0c1e3a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.user-home-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.user-home-hero-panel {
+  background: #ffffff;
+  border: 1px solid #d9e0ec;
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.user-home-stat {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 12px;
+  background: #f4f6fb;
+  border: 1px solid #e3e7f0;
+}
+
+.user-home-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #ffe6ed;
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+
+.user-home-stat-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.user-home-stat-text {
+  color: #5b6579;
+  font-size: 0.9rem;
+}
+
+.user-home-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.user-home-link-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #d9e0ec;
+  background: #ffffff;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 10px 20px rgba(8, 22, 44, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.user-home-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(8, 22, 44, 0.1);
+}
+
+.user-home-link-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #0c1e3a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.user-home-link-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.user-home-link-text {
+  color: #5b6579;
+  font-size: 0.9rem;
+}
+
+.search-page {
+  display: grid;
+  gap: 18px;
+}
+
+.search-hero {
+  background: linear-gradient(135deg, rgba(12, 30, 58, 0.08), rgba(218, 0, 55, 0.08));
+  border: 1px solid #d8deea;
+  border-radius: 16px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.search-hero h1 {
+  margin: 0 0 4px;
+  font-size: clamp(1.4rem, 1.8vw, 1.8rem);
+}
+
+.search-hero p {
+  margin: 0;
+  color: #5b6579;
+}
+
+.search-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #d9e0ec;
+  border-radius: 14px;
+  padding: 8px 10px;
+  box-shadow: 0 8px 18px rgba(8, 22, 44, 0.06);
+}
+
+.search-bar-icon {
+  color: #61708a;
+}
+
+.search-input {
+  border: 0;
+  background: transparent;
+  font-size: 0.95rem;
+  padding: 6px 8px;
+}
+
+.search-input:focus {
+  outline: none;
+}
+
+.search-submit {
+  border-radius: 10px;
+  min-height: 40px;
+}
+
+.search-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-results-header h2 {
+  margin: 0 0 4px;
+}
+
+.search-results-header p {
+  margin: 0;
+  color: #5b6579;
+}
+
+.search-query-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #d4dae7;
+  background: #f4f6fb;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.search-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.search-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #d9e0ec;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(8, 22, 44, 0.06);
+}
+
+.search-card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.search-card-meta {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #7a8497;
+  margin-bottom: 8px;
+}
+
+.search-card-excerpt {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.favorite-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #d9e0ec;
+  background: #f8f9fb;
+  color: #9aa3b2;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
+}
+
+.favorite-btn.active {
+  background: #ffe6ed;
+  border-color: #ffc4d2;
+  color: var(--accent);
+}
+
+.favorite-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.search-highlight {
+  background: #ffe9b0;
+  color: #7a3a00;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+@media (max-width: 960px) {
+  .user-home-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .search-bar {
+    grid-template-columns: auto 1fr;
+  }
+
+  .search-submit {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .search-card {
+    grid-template-columns: 1fr;
+  }
+}
+.search-card-main {
+  display: grid;
+  gap: 4px;
+}
+.search-card-main {
+  text-decoration: none;
+  color: inherit;
+}
+
+.search-card-main:hover .search-card-title {
+  color: #0c1e3a;
+}
+
+.search-card-cta {
+  display: inline-flex;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0c1e3a;
+}
+
+.search-card-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.favorites-page .search-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (max-width: 960px) {
+  .favorites-page .search-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.juris-search-page {
+  display: grid;
+  gap: 18px;
+  background: radial-gradient(circle at 15% 10%, rgba(255, 92, 92, 0.12), transparent 38%),
+    radial-gradient(circle at 85% 15%, rgba(255, 92, 92, 0.08), transparent 40%),
+    #f7f2f4;
+  padding: 18px;
+  border-radius: 24px;
+}
+
+.juris-search-panel {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(198, 30, 46, 0.12);
+  display: grid;
+  gap: 16px;
+}
+
+.juris-search-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #ece6ea;
+  background: #fff;
+  color: #a0a0a0;
+}
+
+.juris-search-input input {
+  flex: 1;
+  border: 0;
+  font-size: 16px;
+  background: transparent;
+  color: #222;
+}
+
+.juris-search-input input:focus {
+  outline: none;
+}
+
+.juris-search-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #5e6a7f;
+  font-weight: 600;
+}
+
+.juris-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.juris-filter-btn {
+  border: 1px solid #e3d8de;
+  background: #fff;
+  color: #4b5563;
+  border-radius: 12px;
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.juris-filter-btn.active {
+  background: #e50914;
+  border-color: #e50914;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(229, 9, 20, 0.25);
+}
+
+.juris-search-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 18px;
+}
+
+.juris-search-list {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 10px;
+  max-height: 520px;
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 18px 36px rgba(198, 30, 46, 0.1);
+}
+
+.juris-doc-card {
+  border: 1px solid #f0e6ea;
+  border-radius: 18px;
+  padding: 16px;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.juris-doc-card.selected {
+  border-color: #e50914;
+  box-shadow: 0 12px 24px rgba(229, 9, 20, 0.18);
+}
+
+.juris-doc-card-main {
+  display: grid;
+  gap: 6px;
+}
+
+.juris-doc-title {
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: #18202f;
+}
+
+.juris-doc-subtitle {
+  color: #5c667a;
+  font-size: 0.92rem;
+}
+
+.juris-doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.juris-doc-tag {
+  background: #ffefef;
+  color: #e50914;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.juris-doc-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #7a8396;
+  font-size: 0.82rem;
+}
+
+.juris-doc-star {
+  border: 0;
+  background: transparent;
+  color: #c1c5d0;
+  cursor: pointer;
+}
+
+.juris-doc-star.active {
+  color: #f2b200;
+}
+
+.juris-search-detail {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 18px 36px rgba(198, 30, 46, 0.1);
+  min-height: 320px;
+}
+
+.juris-detail-card {
+  display: grid;
+  gap: 16px;
+}
+
+.juris-detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.juris-detail-title {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.juris-detail-subtitle {
+  color: #5c667a;
+}
+
+.juris-detail-content {
+  border-top: 1px solid #f0e6ea;
+  padding-top: 12px;
+  color: #4c566a;
+  line-height: 1.5;
+}
+
+.juris-detail-label {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.juris-detail-cta {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  background: #e50914;
+  color: #fff;
+  border-radius: 16px;
+  padding: 12px 16px;
+  text-decoration: none;
+  font-weight: 700;
+  box-shadow: 0 12px 26px rgba(229, 9, 20, 0.25);
+}
+
+.juris-detail-empty {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #7a8396;
+  gap: 8px;
+}
+
+@media (max-width: 1024px) {
+  .juris-search-body {
+    grid-template-columns: 1fr;
+  }
+
+  .juris-search-list {
+    max-height: none;
+  }
+}
+
+.user-header {
+  background: #ffffff;
+  color: #1f2937;
+  border-bottom: 1px solid #f0e6ea;
+  box-shadow: 0 10px 30px rgba(229, 9, 20, 0.08);
+}
+
+.user-header .header-icon {
+  background: #e50914;
+  box-shadow: 0 10px 20px rgba(229, 9, 20, 0.25);
+}
+
+.user-brand {
+  color: #1f2937;
+}
+
+.user-status {
+  color: #6b7280;
+}
+
+.user-nav-link {
+  border: 0;
+  background: transparent;
+  color: #1f2937;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.user-nav-link.active {
+  background: #e50914;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(229, 9, 20, 0.25);
+}
+
+.user-nav-link.nav-button {
+  color: #e50914;
+}
+
+.login-page-modern {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 10% 20%, rgba(229, 9, 20, 0.15), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(229, 9, 20, 0.1), transparent 45%),
+    #f7f3f5;
+}
+
+.login-card-modern {
+  width: min(90vw, 420px);
+  padding: 32px 28px;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 30px 70px rgba(229, 9, 20, 0.18);
+  border: 1px solid rgba(229, 9, 20, 0.08);
+  text-align: center;
+}
+
+.login-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: linear-gradient(140deg, #ff4b4b, #e50914);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 18px;
+  box-shadow: 0 16px 30px rgba(229, 9, 20, 0.28);
+}
+
+.login-brand {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.login-tagline {
+  color: #6b7280;
+  margin-top: 6px;
+  margin-bottom: 24px;
+}
+
+.login-form-modern {
+  display: grid;
+  gap: 16px;
+  text-align: left;
+}
+
+.login-label {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: -8px;
+}
+
+.login-input-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  color: #9ca3af;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-input-shell input {
+  border: 0;
+  flex: 1;
+  font-size: 0.98rem;
+}
+
+.login-input-shell input:focus {
+  outline: none;
+}
+
+.login-input-shell:focus-within {
+  border-color: #e50914;
+  box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.12);
+}
+
+.login-eye {
+  border: 0;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.login-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-remember input {
+  width: 16px;
+  height: 16px;
+}
+
+.login-link {
+  border: 0;
+  background: transparent;
+  color: #e50914;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-submit {
+  margin-top: 4px;
+  border: 0;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ff4b4b, #e50914);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 16px 30px rgba(229, 9, 20, 0.25);
+}
+
+.juris-chat-page {
+  display: grid;
+  grid-template-columns: minmax(0, 0.35fr) minmax(0, 0.65fr);
+  gap: 18px;
+  background: radial-gradient(circle at 10% 10%, rgba(229, 9, 20, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 20%, rgba(229, 9, 20, 0.1), transparent 40%),
+    #f7f2f4;
+  border-radius: 24px;
+  padding: 18px;
+}
+
+/* .juris-chat-sidebar {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 18px 36px rgba(198, 30, 46, 0.1);
+  display: grid;
+  gap: 16px;
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+} */
+
+.juris-new-chat {
+  border: 0;
+  background: #ffeaea;
+  color: #e50914;
+  font-weight: 700;
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.juris-history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.juris-history-card {
+  border: 1px solid #f0e6ea;
+  background: #fff8f8;
+  border-radius: 16px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.juris-history-card.active {
+  border-color: #e50914;
+  box-shadow: 0 12px 24px rgba(229, 9, 20, 0.18);
+}
+
+.juris-history-title {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.juris-history-date {
+  font-size: 0.85rem;
+  color: #7a8396;
+  margin-top: 6px;
+}
+
+/* .juris-chat-main {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 16px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 18px 36px rgba(198, 30, 46, 0.1);
+  min-height: 520px;
+} */
+
+/* .juris-chat-thread {
+  overflow: auto;
+  display: grid;
+  gap: 18px;
+} */
+
+.juris-message-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.juris-message-row.user {
+  justify-items: end;
+}
+
+.juris-message-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: #ffeaea;
+  color: #e50914;
+  display: grid;
+  place-items: center;
+}
+
+.juris-message-avatar.user {
+  background: #edf2f7;
+  color: #4b5563;
+}
+
+.juris-message-bubble {
+  max-width: 680px;
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: #f4f6fb;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.juris-message-bubble.user {
+  background: #e50914;
+  color: #fff;
+}
+
+.juris-message-time {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #8b95a7;
+}
+
+.juris-sources {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.juris-sources-title {
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.juris-source-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #f0e6ea;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.juris-source-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #ffeaea;
+  color: #e50914;
+  display: grid;
+  place-items: center;
+}
+
+.juris-source-text {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.juris-source-title {
+  font-weight: 700;
+}
+
+.juris-source-type {
+  font-size: 0.8rem;
+  color: #8b95a7;
+}
+
+.juris-source-download {
+  color: #e50914;
+}
+
+.juris-composer {
+  border-top: 1px solid #f0e6ea;
+  padding-top: 14px;
+}
+
+.juris-composer-shell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+
+.juris-composer-shell textarea {
+  flex: 1;
+  border: 0;
+  resize: none;
+  font-size: 0.98rem;
+}
+
+.juris-composer-shell textarea:focus {
+  outline: none;
+}
+
+.juris-send-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  border: 0;
+  background: #f28b8b;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .juris-chat-page {
+    grid-template-columns: 1fr;
+  }
+
+  .juris-chat-sidebar {
+    max-height: none;
+  }
+}
+
+/* Chat sizing tweaks */
+.juris-history-card {
+  padding: 10px;
+  border-radius: 14px;
+}
+
+.juris-history-title {
+  font-size: 0.95rem;
+}
+
+.juris-history-date {
+  font-size: 0.8rem;
+}
+
+.juris-message-bubble {
+  max-width: 820px;
+  font-size: 1rem;
+}
+
+.juris-message-bubble.user {
+  max-width: 860px;
+}
+
+/* Chat layout ratio: narrower history, wider chat */
+.juris-chat-page {
+  grid-template-columns: minmax(0, 0.28fr) minmax(0, 0.72fr);
+}
+
+/* Chat layout ratio: smaller history like screenshot */
+.juris-chat-page {
+  grid-template-columns: minmax(0, 0.24fr) minmax(0, 0.76fr);
+}
+
+.juris-chat-sidebar {
+  max-width: 320px;
+}
+
+/* Make chat blocks span the full page height */
+.juris-chat-page {
+  min-height: calc(100vh - 140px);
+}
+
+.juris-chat-sidebar {
+  max-height: none;
+}
+
+.juris-chat-main {
+  min-height: calc(100vh - 140px);
+}
+
+/* Scroll areas for chat and history */
+.juris-chat-sidebar {
+  overflow: auto;
+}
+
+.juris-chat-thread {
+  overflow: auto;
+}
+
+/* Fixed heights to match reference layout */
+
+
+/* Dedicated scroll areas */
+.juris-chat-sidebar {
+  overflow: hidden;
+}
+
+.juris-history-list {
+  overflow: auto;
+  max-height: calc(100% - 56px);
+}
+
+.juris-chat-thread {
+  overflow: auto;
+  max-height: calc(100% - 90px);
+}
+/* ===== Scroll indépendant sidebar + chat ===== */
+
+
+.legal-sidebar {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-history {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.legal-chat-main {
+  height: 100vh;
+  min-height: 0;
+}
+
+.legal-chat-area {
+  flex: 1;
+  min-height: 0;
+}
+
+.messages-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar sidebar */
+.sidebar-history::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-history::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.sidebar-history::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Scrollbar chat */
+.messages-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.messages-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages-panel::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.messages-panel::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: padding-box;
+}
+
+/* Firefox */
+/* ===== Sidebar history: reduce empty vertical space ===== */
+
+.legal-sidebar {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-history {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  align-items: stretch;
+  align-content: flex-start;
+}
+
+.history-item {
+  flex: 0 0 auto;
+  padding: 10px 8px;
+  min-height: auto;
+  align-items: flex-start;
+}
+
+.history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-title {
+  font-size: 0.98rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-time {
+  font-size: 0.78rem;
+  line-height: 1.1;
+}
+
+/* Optional: active item like screenshot */
+.history-item.active {
+  background: #f1f3f6;
+  border-radius: 14px;
+}
+/* ===== User layout workspace toolbar ===== */
+
+.user-shell {
+  min-height: 100vh;
+  background: #f5f6f8;
+}
+
+.user-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #eceff5;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.user-nav {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.user-nav-link {
+  transition: all 0.2s ease;
+}
+
+.user-nav-link:hover {
+  background: #fff1f3;
+  color: #e50914;
+}
+
+.workspace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 0 20px;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid #eceff5;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.workspace-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workspace-toolbar-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff4b4b, #e50914);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 20px rgba(229, 9, 20, 0.2);
+  flex: 0 0 38px;
+}
+
+.workspace-toolbar-title {
+  font-size: clamp(1.1rem, 1.6vw, 1.55rem);
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Chat page clean layout ===== */
+
+.user-content {
+  flex: 1;
+  padding: 14px 18px 18px;
+  min-height: 0;
+}
+
+.legal-chat-app {
+  min-height: calc(100vh - 170px);
+  height: calc(100vh - 170px);
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid #e7eaf1;
+  background: #f3f5f9;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.legal-sidebar {
+  width: 300px;
+  padding: 14px;
+  background: #ffffff;
+  border-right: 1px solid #eceff5;
+}
+
+.sidebar-section-title {
+  margin-top: 8px;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #60708d;
+}
+
+.new-question-btn {
+  border-radius: 16px;
+  padding: 13px 14px;
+  background: #f3f4f7;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.sidebar-history {
+  padding-right: 2px;
+  gap: 4px;
+}
+
+.history-item {
+  border-radius: 14px;
+  padding: 10px 10px;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.history-item:hover {
+  transform: translateY(-1px);
+}
+
+.history-item.active {
+  background: #eef2f7;
+  box-shadow: inset 0 0 0 1px #e4e9f1;
+}
+
+.history-icon {
+  margin-top: 1px;
+}
+
+.history-title {
+  font-size: 0.97rem;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.history-time {
+  font-size: 0.82rem;
+  color: #7a869a;
+}
+
+.legal-chat-main {
+  background: #f8f9fb;
+}
+
+.legal-chat-area {
+  padding: 0;
+}
+
+.chat-inline-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px 0;
+}
+
+.messages-panel {
+  padding: 18px 18px 12px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), transparent 24%);
+}
+
+.empty-chat-state {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 14px;
+  padding: 40px 16px;
+}
+
+.empty-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  margin: 0 auto;
+}
+
+.empty-chat-state h1 {
+  font-size: clamp(1.8rem, 2.2vw, 2.3rem);
+  font-weight: 800;
+  color: #0b1736;
+}
+
+.empty-chat-state p {
+  font-size: 1rem;
+  color: #66758e;
+  max-width: 680px;
+}
+
+.message-bubble {
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.composer-panel {
+  padding: 12px 14px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+/* .composer-shell {
+  max-width: 900px;
+  border-radius: 16px;
+  padding: 8px 10px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.composer-input {
+  min-height: 42px;
+  max-height: 140px;
+  font-size: 0.98rem;
+} */
+
+/* .send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+} */
+
+.composer-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.composer-input {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  max-height: 140px;
+}
+
+.send-btn {
+  flex: 0 0 40px;
+}
+
+.chat-inline-actions {
+  flex-shrink: 0;
+  padding: 12px 14px 0;
+}
+/* ===== Better scrollbars ===== */
+
+.sidebar-history::-webkit-scrollbar,
+.messages-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-history::-webkit-scrollbar-thumb,
+.messages-panel::-webkit-scrollbar-thumb {
+  background: #cfd6e3;
+  border-radius: 999px;
+}
+
+.sidebar-history::-webkit-scrollbar-thumb:hover,
+.messages-panel::-webkit-scrollbar-thumb:hover {
+  background: #aeb9cb;
+}
+
+/* ===== Responsive ===== */
+
+@media (max-width: 1100px) {
+  .user-header {
+    align-items: flex-start;
+  }
+
+  .workspace-toolbar {
+    padding: 0 14px;
+  }
+
+  .user-content {
+    padding: 12px;
+  }
+
+  .legal-chat-app {
+    min-height: calc(100vh - 190px);
+    height: calc(100vh - 190px);
+  }
+}
+
+@media (max-width: 960px) {
+  .workspace-toolbar {
+    min-height: 64px;
+  }
+
+  .workspace-toolbar-title {
+    font-size: 1.1rem;
+  }
+
+  .legal-chat-app {
+    min-height: calc(100vh - 190px);
+    height: calc(100vh - 190px);
+  }
+
+  .legal-sidebar {
+    width: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .user-header {
+    padding: 12px;
+  }
+
+  .user-nav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .workspace-toolbar {
+    padding: 0 12px;
+  }
+
+  .legal-chat-app {
+    border-radius: 16px;
+  }
+
+  .empty-chat-state h1 {
+    font-size: 1.5rem;
+  }
+
+  .empty-chat-state p {
+    font-size: 0.95rem;
+  }
+}
+/* ===== Final chat layout overrides (composer visible) ===== */
+.user-content {
+  min-height: 0;
+}
+
+.legal-chat-app {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+.legal-sidebar {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-history {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.legal-chat-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f8f9fb;
+}
+
+.legal-chat-area {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+}
+
+/* .messages-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 18px 12px;
+} */
+.composer-panel {
+  flex-shrink: 0;
+  padding: 12px 14px 14px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+}
+/* ===== FIX: chat visible sans scroller la page ===== */
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.user-app,
+.user-shell {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.user-content {
+  flex: 1;
+  min-height: 0;
+  height: calc(100vh - 96px);
+  overflow: hidden;
+  padding: 12px 16px 16px;
+}
+
+.legal-chat-app {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  border-radius: 22px;
+}
+
+.legal-chat-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.legal-chat-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.messages-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.composer-panel {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: #fff;
 }

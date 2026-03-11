@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import type { SourceFile } from "../../models/chat.models";
 import type { ConversationMessage, ConversationSummary } from "../../models/conversation.models";
-import { useAuth } from "../../auth/AuthContext";
 import { askQuestion, getConversationMessages, listMyConversations } from "../../services/user.service";
 
 type ChatMessage = {
@@ -57,8 +55,7 @@ function fromConversationMessages(messages: ConversationMessage[]): ChatMessage[
 }
 
 export default function AskQuestionPage() {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
+
 
   const [question, setQuestion] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
@@ -94,14 +91,13 @@ export default function AskQuestionPage() {
     void refreshHistory();
   }, []);
 
-  const visibleHistory = useMemo(
-    () =>
-      historyItems
-        .filter((item) => !hiddenHistoryIds[item.id])
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    [historyItems, hiddenHistoryIds],
-  );
-
+const visibleHistory = useMemo(
+  () =>
+    [...historyItems]
+      .filter((item) => !hiddenHistoryIds[item.id])
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+  [historyItems, hiddenHistoryIds],
+);
   function startNewQuestion() {
     setConversationId(undefined);
     setMessages([]);
@@ -139,10 +135,6 @@ export default function AskQuestionPage() {
     }
   }
 
-  async function onLogout() {
-    await logout();
-    navigate("/login", { replace: true });
-  }
 
   async function onAsk() {
     const currentQuestion = question.trim();
@@ -246,56 +238,31 @@ export default function AskQuestionPage() {
       </aside>
 
       <section className="legal-chat-main">
-        <header className="legal-topbar">
-          <div className="topbar-left">
-            <button className="icon-btn" type="button" onClick={() => setSidebarOpen((prev) => !prev)} aria-label="Basculer menu">
-              <Icon>
-                <path d="M4 7h16" />
-                <path d="M4 12h16" />
-                <path d="M4 17h16" />
-              </Icon>
-            </button>
-            <div className="brand-logo">
-              <Icon size={16}>
-                <path d="M8 3h6l4 4v14H6V3z" />
-                <path d="M14 3v4h4" />
-                <path d="M9 13h6" />
-              </Icon>
-            </div>
-            <div className="brand-title">Assistant Juridique</div>
-          </div>
-          <div className="topbar-right">
-            <button className="icon-btn" type="button" onClick={() => setDarkMode((prev) => !prev)} aria-label="Changer theme">
-              {darkMode ? (
-                <Icon>
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2" />
-                  <path d="M12 20v2" />
-                  <path d="M2 12h2" />
-                  <path d="M20 12h2" />
-                </Icon>
-              ) : (
-                <Icon>
-                  <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
-                </Icon>
-              )}
-            </button>
-            <button className="icon-btn" type="button" aria-label="Profil">
-              <Icon>
-                <circle cx="12" cy="8" r="3.5" />
-                <path d="M5 20a7 7 0 0 1 14 0" />
-              </Icon>
-            </button>
-            <button className="icon-btn" type="button" onClick={onLogout} aria-label="Deconnexion">
-              <Icon>
-                <path d="M10 5H5v14h5" />
-                <path d="M14 12h7" />
-                <path d="m18 8 4 4-4 4" />
-              </Icon>
-            </button>
-          </div>
-        </header>
+   <div className="chat-inline-actions">
+  <button className="icon-btn" type="button" onClick={() => setSidebarOpen((prev) => !prev)} aria-label="Basculer menu">
+    <Icon>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </Icon>
+  </button>
 
+  <button className="icon-btn" type="button" onClick={() => setDarkMode((prev) => !prev)} aria-label="Changer thème">
+    {darkMode ? (
+      <Icon>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+      </Icon>
+    ) : (
+      <Icon>
+        <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+      </Icon>
+    )}
+  </button>
+</div>
         <main className="legal-chat-area">
           <section className="messages-panel">
             {messages.length === 0 ? (
@@ -348,7 +315,7 @@ export default function AskQuestionPage() {
           <section className="composer-panel">
             <div className="composer-shell">
              
-              <textarea
+              <textarea id="question-input"
                 className="composer-input"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
