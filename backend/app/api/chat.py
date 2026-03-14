@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+﻿from fastapi import APIRouter, Depends
 
 from app.auth import get_current_user_from_request, require_role
 from app.controllers.chat_controller import (
@@ -47,3 +47,8 @@ def list_conversation_messages(
     current_user: AuthUser = Depends(get_current_user_from_request),
 ):
     return list_user_conversation_messages_controller(current_user.id, conversation_id, limit=limit)
+
+@router.get("/suggestions", response_model=list[str])
+def get_suggestions(query: str, limit: int = 5):
+    return get_question_suggestions_controller(query, limit=limit)
+

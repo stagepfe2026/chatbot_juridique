@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import Snackbar from "../../../components/Snackbar";
 import { importDocument } from "../../../services/admin.service";
 import type { DocumentCategory, ImportDocumentForm } from "../../../models/document.models";
 import { guessTitleFromFilename, validateFile } from "../../../utils/fileValidation";
@@ -15,25 +15,41 @@ const initialForm: ImportDocumentForm = {
   file: null,
   title: "",
   category: "",
+  realizedAt: "",
   description: "",
 };
 
 export default function DocumentsImportPage() {
   const [form, setForm] = useState<ImportDocumentForm>(initialForm);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const [snack, setSnack] = useState<{ open: boolean; message: string; variant: "success" | "error" | "info" }>(
+    {
+      open: false,
+      message: "",
+      variant: "info",
+    }
+  );
+
+  function showSnack(message: string, variant: "success" | "error" | "info") {
+    setSnack({ open: true, message, variant });
+  }
 
   const canSubmit = useMemo(() => {
-    return !!form.file && form.title.trim().length > 0 && !!form.category && !fileError && !isSubmitting;
-  }, [form.file, form.title, form.category, fileError, isSubmitting]);
+    return (
+      !!form.file &&
+      form.title.trim().length > 0 &&
+      !!form.category &&
+      !!form.realizedAt &&
+      !fileError &&
+      !isSubmitting
+    );
+  }, [form.file, form.title, form.category, form.realizedAt, fileError, isSubmitting]);
 
   function onPickFile(file: File | null) {
-    setSuccessMsg(null);
-    setSubmitError(null);
-
     if (!file) {
       setForm((prev) => ({ ...prev, file: null }));
       setFileError(null);
@@ -50,24 +66,22 @@ export default function DocumentsImportPage() {
   }
 
   async function onSubmit() {
-    setSubmitError(null);
-    setSuccessMsg(null);
-
-    if (!form.file) return setSubmitError("Veuillez selectionner un fichier.");
-    if (fileError) return setSubmitError(fileError);
-    if (!form.title.trim()) return setSubmitError("Le titre est obligatoire.");
-    if (!form.category) return setSubmitError("La categorie est obligatoire.");
+    if (!form.file) return showSnack("Veuillez selectionner un fichier.", "error");
+    if (fileError) return showSnack(fileError, "error");
+    if (!form.title.trim()) return showSnack("Le titre est obligatoire.", "error");
+    if (!form.category) return showSnack("La categorie est obligatoire.", "error");
+    if (!form.realizedAt) return showSnack("La date de realisation est obligatoire.", "error");
 
     try {
       setIsSubmitting(true);
       const res = await importDocument(form);
 
       if (res.status === "FAILED") {
-        setSubmitError(res.error || `Echec d'indexation pour ${res.filename}.`);
+        showSnack(res.error || `Echec d'indexation pour ${res.filename}.`, "error");
         return;
       }
 
-      setSuccessMsg(`Document importe: ${res.filename} (statut: ${res.status}).`);
+      showSnack(`Document importe: ${res.filename} (statut: ${res.status}).`, "success");
       setForm(initialForm);
       setFileError(null);
     } catch (e: unknown) {
@@ -75,119 +89,144 @@ export default function DocumentsImportPage() {
         typeof e === "object" && e !== null && "message" in e
           ? String((e as { message?: unknown }).message ?? "Erreur lors de l'import.")
           : "Erreur lors de l'import.";
-      setSubmitError(message);
+      showSnack(message, "error");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="page">
-      <div className="page-toolbar">
+    <div className="jb-page">
+
+      <section className="jb-hero">
+        <div className="jb-hero-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 3v12" />
+            <path d="M7 8l5-5 5 5" />
+            <path d="M5 21h14" />
+          </svg>
+        </div>
         <div>
-          <div className="page-subtitle">Gestion documentaire &gt; Importer un document</div>
-          <h1 className="page-title">Importer un document</h1>
-        </div>
-        <Link to="/admin/documents" style={{ textDecoration: "none" }}>
-          <button type="button" className="btn btn-ghost">
-            Retour a la liste
-          </button>
-        </Link>
-      </div>
-
-      <section className="card">
-        <h3 className="card-title">Fichier</h3>
-        <div
-          className="dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const droppedFile = e.dataTransfer.files?.[0];
-            if (droppedFile) onPickFile(droppedFile);
-          }}
-        >
-          <div style={{ fontSize: 18, marginBottom: 10, fontWeight: 700 }}>Glissez-deposez un fichier ici</div>
-          <div style={{ marginBottom: 12, opacity: 0.8 }}>ou</div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx"
-            style={{ display: "none" }}
-            onChange={(e) => onPickFile(e.target.files?.[0] || null)}
-          />
-          <button type="button" className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
-            Parcourir les fichiers
-          </button>
-          <div style={{ marginTop: 12, fontSize: 13, opacity: 0.8 }}>Formats acceptes : PDF, DOCX</div>
-          {form.file && (
-            <div style={{ marginTop: 10, fontSize: 13 }}>
-              <strong>Fichier :</strong> {form.file.name}
-            </div>
-          )}
-          {fileError && <div className="message-error">{fileError}</div>}
+          <h1 className="jb-hero-title">Importer un document</h1>
+          <p className="jb-hero-subtitle">Ajoutez et indexez de nouveaux documents juridiques</p>
         </div>
       </section>
 
-      <section className="card">
-        <h3 className="card-title">Metadonnees</h3>
-        <div className="field-grid">
-          <div>
-            <label className="field-label">Titre</label>
-            <input
-              className="input"
-              value={form.title}
-              onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-              placeholder="Ex: Loi de finances 2026"
-            />
-          </div>
-          <div>
-            <label className="field-label">Categorie</label>
-            <select
-              className="select"
-              value={form.category}
-              onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value as DocumentCategory }))}
+      <section className="jb-card">
+        <div className="jb-form">
+          <div className="jb-field">
+            <label className="jb-label">
+              Fichier <span className="jb-required">*</span>
+            </label>
+            <div
+              className={`jb-dropzone${isDragOver ? " drag" : ""}`}
+              onDragEnter={() => setIsDragOver(true)}
+              onDragLeave={() => setIsDragOver(false)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                const droppedFile = e.dataTransfer.files?.[0];
+                if (droppedFile) onPickFile(droppedFile);
+              }}
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+              }}
             >
-              <option value="">Selectionner...</option>
-              {categoryOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                style={{ display: "none" }}
+                onChange={(e) => onPickFile(e.target.files?.[0] || null)}
+              />
+              <div className="jb-dropzone-inner jb-dropzone-inner--center">
+                <div className="jb-file-ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="jb-dropzone-title">
+                    {form.file ? form.file.name : "Cliquez pour selectionner un fichier"}
+                  </div>
+                  <div className="jb-dropzone-hint">PDF, DOC, DOCX ? Maximum 50MB</div>
+                </div>
+              </div>
+            </div>
+            {fileError && <div className="jb-msg jb-msg--error">{fileError}</div>}
           </div>
-          <div>
-            <label className="field-label">Description</label>
-            <textarea
-              className="textarea"
-              value={form.description}
-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-              placeholder="Description du document juridique..."
-            />
+
+          <div className="jb-grid">
+            <div className="jb-field">
+              <label className="jb-label">
+                Titre du document <span className="jb-required">*</span>
+              </label>
+              <input
+                className="jb-input"
+                value={form.title}
+                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Ex: Loi de Finances 2024"
+              />
+            </div>
+
+            <div className="jb-field">
+              <label className="jb-label">
+                Categorie <span className="jb-required">*</span>
+              </label>
+              <select
+                className="jb-select"
+                value={form.category}
+                onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value as DocumentCategory }))}
+              >
+                <option value="">Selectionner une categorie</option>
+                {categoryOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="jb-field">
+              <label className="jb-label">
+                Date de realisation <span className="jb-required">*</span>
+              </label>
+              <input
+                className="jb-input"
+                type="date"
+                value={form.realizedAt}
+                onChange={(e) => setForm((prev) => ({ ...prev, realizedAt: e.target.value }))}
+              />
+            </div>
+
+            <div className="jb-field jb-field--full">
+              <label className="jb-label">Description</label>
+              <textarea
+                className="jb-textarea"
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Decrivez brievement le contenu du document..."
+              />
+            </div>
           </div>
+
+          <button className="jb-btn-primary" type="button" onClick={onSubmit} disabled={!canSubmit}>
+            {isSubmitting ? "Import en cours..." : "Importer et Indexer le document"}
+          </button>
         </div>
       </section>
 
-      <div className="actions">
-        <button
-          className="btn btn-secondary"
-          type="button"
-          onClick={() => {
-            setForm(initialForm);
-            setFileError(null);
-            setSubmitError(null);
-            setSuccessMsg(null);
-          }}
-          disabled={isSubmitting}
-        >
-          Annuler
-        </button>
-        <button className="btn btn-primary" type="button" onClick={onSubmit} disabled={!canSubmit}>
-          {isSubmitting ? "Import en cours..." : "Importer"}
-        </button>
-      </div>
-
-      {submitError && <div className="message-error">{submitError}</div>}
-      {successMsg && <div className="message-success">{successMsg}</div>}
+      <Snackbar
+        open={snack.open}
+        message={snack.message}
+        variant={snack.variant}
+        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }

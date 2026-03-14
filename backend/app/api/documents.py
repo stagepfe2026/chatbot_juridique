@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
 from app.auth import require_role
 from app.controllers.documents_controller import (
+    delete_document_controller,
     document_points_controller,
     import_document_controller,
     index_existing_documents_controller,
@@ -31,13 +32,20 @@ def import_document(
     title: str = Form(...),
     category: DocumentCategory = Form(...),
     description: str = Form(default=""),
+    realizedAt: str = Form(...),
 ):
     return import_document_controller(
         file=file,
         title=title,
         category=category,
         description=description,
+        realized_at=realizedAt,
     )
+
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(document_id: str):
+    return delete_document_controller(document_id)
 
 
 @router.post("/index-existing", response_model=IndexManyResponse)

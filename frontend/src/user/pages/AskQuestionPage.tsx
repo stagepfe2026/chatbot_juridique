@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { SourceFile } from "../../models/chat.models";
 import type { ConversationMessage, ConversationSummary } from "../../models/conversation.models";
@@ -9,6 +9,7 @@ type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   time: string;
+  questionId?: string | null;
   sourceFile?: SourceFile | null;
 };
 
@@ -44,13 +45,25 @@ function formatDayLabel(dateString: string): string {
   return `Il y a ${diffDays} jours`;
 }
 
+function sanitizeAnswerText(text: string): string {
+  let t = String(text ?? "");
+  // Defensive cleanup: never show internal chunk IDs in UI.
+  t = t.replace(/\bchunk_\d+\b/gi, "");
+  t = t.replace(/\s*:\s*(?=[)\]])/g, "");
+  t = t.replace(/\s+et\s+(?=[)\],;\.])/gi, " ");
+  t = t.replace(/\(\s*\)/g, "");
+  t = t.replace(/\s{2,}/g, " ").trim();
+  return t;
+}
+
 function fromConversationMessages(messages: ConversationMessage[]): ChatMessage[] {
   return messages.map((item) => ({
     id: item.id,
     role: item.role,
-    text: item.content,
+    text: item.role === "assistant" ? sanitizeAnswerText(item.content) : item.content,
     time: new Date(item.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-    sourceFile: null,
+    questionId: item.questionId ?? null,
+    sourceFile: item.sourceFile ?? null,
   }));
 }
 
@@ -61,23 +74,12 @@ export default function AskQuestionPage() {
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [historyItems, setHistoryItems] = useState<ConversationSummary[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
   const [hiddenHistoryIds, setHiddenHistoryIds] = useState<Record<string, boolean>>({});
   const [customTitles, setCustomTitles] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem("legal-chat-theme");
-    setDarkMode(stored === "dark");
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("legal-chat-theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
-
   async function refreshHistory() {
     try {
       const items = await listMyConversations();
@@ -160,8 +162,9 @@ const visibleHistory = useMemo(
       const assistantMessage: ChatMessage = {
         id: `a-${Date.now()}`,
         role: "assistant",
-        text: res.answer,
+        text: sanitizeAnswerText(res.answer),
         time: nowAsTime(),
+        questionId: res.questionId,
         sourceFile: res.sourceFile ?? null,
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -179,7 +182,7 @@ const visibleHistory = useMemo(
   }
 
   return (
-    <div className={`legal-chat-app${darkMode ? " dark" : ""}`}>
+    <div className="legal-chat-app">
       <aside className={`legal-sidebar${sidebarOpen ? " open" : " closed"}`}>
         <button className="new-question-btn" type="button" onClick={startNewQuestion}>
           <span className="btn-icon">
@@ -246,25 +249,10 @@ const visibleHistory = useMemo(
       <path d="M4 17h16" />
     </Icon>
   </button>
-
-  <button className="icon-btn" type="button" onClick={() => setDarkMode((prev) => !prev)} aria-label="Changer thème">
-    {darkMode ? (
-      <Icon>
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2" />
-        <path d="M12 20v2" />
-        <path d="M2 12h2" />
-        <path d="M20 12h2" />
-      </Icon>
-    ) : (
-      <Icon>
-        <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
-      </Icon>
-    )}
-  </button>
 </div>
         <main className="legal-chat-area">
           <section className="messages-panel">
+            <div className="messages-scroll">
             {messages.length === 0 ? (
               <div className="empty-chat-state">
                 <div className="empty-logo">
@@ -310,9 +298,9 @@ const visibleHistory = useMemo(
                 </div>
               </article>
             )}
-          </section>
+            </div>
 
-          <section className="composer-panel">
+            <section className="composer-panel">
             <div className="composer-shell">
              
               <textarea id="question-input"
@@ -334,12 +322,14 @@ const visibleHistory = useMemo(
                   <path d="m22 2-7 20-3-9-9-3z" />
                 </Icon>
               </button>
-            </div>
-            
-            {error && <div className="message-error">{error}</div>}
+            </div>\n            </section>
           </section>
         </main>
       </section>
     </div>
   );
 }
+
+
+
+

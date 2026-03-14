@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 from pathlib import Path
 import re
 import threading
@@ -82,15 +82,12 @@ def _to_source_items(docs: list[Document]) -> list[SourceItem]:
     items: list[SourceItem] = []
     for doc in docs:
         metadata = doc.metadata or {}
-        chunk_index = metadata.get("chunk_index")
         page = metadata.get("page")
-        section = f"chunk_{chunk_index}" if chunk_index is not None else None
         items.append(
             SourceItem(
                 documentId=str(metadata.get("document_id", "")),
                 title=str(metadata.get("title", "Document juridique")),
                 excerpt=doc.page_content[:500],
-                section=section,
                 page=str(page) if page is not None else None,
             )
         )
@@ -256,16 +253,13 @@ def _build_rag_context(docs: list[Document]) -> str:
         metadata = doc.metadata or {}
         title = str(metadata.get("title", "Document juridique"))
         document_id = str(metadata.get("document_id", ""))
-        chunk_index = metadata.get("chunk_index")
-        section = f"chunk_{chunk_index}" if chunk_index is not None else "n/a"
         page = metadata.get("page")
         page_label = str(page) if page is not None else "n/a"
         blocks.append(
             "\n".join(
                 [
                     f"[Source {index}]",
-                    f"document: {title} (id: {document_id})",
-                    f"section: {section}",
+                    f"document: {title}",
                     f"page: {page_label}",
                     f"content: {doc.page_content}",
                 ]
@@ -298,6 +292,16 @@ def _sanitize_answer_references(answer: str, rag_context: str) -> str:
                 rendered,
                 flags=re.IGNORECASE,
             )
+
+    # Remove technical chunk identifiers if the LLM echoes them.
+    rendered = re.sub(r"\bchunk_\d+\b", "", rendered, flags=re.IGNORECASE)
+    # Clean up dangling punctuation after removal.
+    rendered = re.sub(r"\s*:\s*(?=[)\]])", "", rendered)
+    rendered = re.sub(r"\s+et\s+(?=[)\],;\.])", " ", rendered, flags=re.IGNORECASE)
+    rendered = re.sub(r"\(\s*\)", "", rendered)
+    rendered = re.sub(r"\s{2,}", " ", rendered).strip()
+    rendered = re.sub(r"\s+([,;:.])", r"\1", rendered)
+
     return rendered
 
 
@@ -315,7 +319,10 @@ def _review_answer_grounding(*, rag_context: str, user_question: str, draft_answ
     rendered = str(reviewed).strip()
     if not rendered:
         return draft_answer
+
+
     return rendered
+
 
 
 def _generate_answer(*, summary: str, last_messages: list[dict[str, str]], rag_context: str, user_question: str) -> str:
@@ -386,10 +393,6 @@ def ask_question(
     if not used_document_context:
         sources = []
         source_file = None
-
-    save_message(resolved_conversation_id, "assistant", answer)
-    _update_summary_async(resolved_conversation_id)
-
     answered_at = datetime.now(timezone.utc)
     question_model = ChatQuestionModel.new(
         question=question.strip(),
@@ -403,6 +406,14 @@ def ask_question(
     )
     question_id = _chat_questions_repo.create_question_record(question_model)
 
+    save_message(
+        resolved_conversation_id,
+        "assistant",
+        answer,
+        question_id=question_id,
+        source_file=_to_plain_dict(source_file) if source_file else None,
+    )
+    _update_summary_async(resolved_conversation_id)
     return question_id, answer, sources, source_file, resolved_conversation_id
 
 
@@ -426,3 +437,39 @@ def get_source_file_for_question(question_id: str) -> SourceFile | None:
     if not isinstance(raw, dict):
         return None
     return SourceFile(**raw)
+
+
+
+
+
+
+
+def suggest_question_suggestions(query: str, limit: int = 5) -> list[str]:
+    q = str(query or "").strip()
+    if not q:
+        return []
+    # Only start suggesting after 3 typed words.
+    words = [w for w in re.split(r"\s+", q) if w]
+    if len(words) < 3:
+        return []
+    try:
+        docs = _retrieve_relevant_docs(q)
+    except Exception:
+        return []
+
+    suggestions: list[str] = []
+    seen: set[str] = set()
+    for doc in docs:
+        meta = doc.metadata or {}
+        title = str(meta.get("title") or "").strip()
+        if not title:
+            continue
+        key = title.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        suggestions.append(title)
+        if len(suggestions) >= max(1, int(limit)):
+            break
+    return suggestions
+

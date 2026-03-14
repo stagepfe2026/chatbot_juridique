@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 import mimetypes
 import subprocess
 import logging
@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.repositories import DocumentsRepository
-from app.rag.pipeline import ask_question, get_sources_for_question
+from app.rag.pipeline import ask_question, get_sources_for_question, suggest_question_suggestions
 from app.schemas import AskQuestionResponse, SourceItem
 
 logger = logging.getLogger(__name__)
@@ -133,3 +133,10 @@ def download_document_file(document_id: str) -> FileResponse:
         media_type=media_type or "application/octet-stream",
         headers={"Content-Disposition": f'inline; filename="{file_path.name}"'},
     )
+
+
+
+def list_question_suggestions(query: str, limit: int = 5) -> list[str]:
+    return suggest_question_suggestions(query, limit=limit)
+
+

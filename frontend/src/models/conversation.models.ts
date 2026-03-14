@@ -1,3 +1,5 @@
+﻿import type { SourceFile } from "./chat.models";
+
 export interface Conversation {
   id: string;
   question: string;
@@ -24,4 +26,7 @@ export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+  questionId?: string | null;
+  sourceFile?: SourceFile | null;
 }
+

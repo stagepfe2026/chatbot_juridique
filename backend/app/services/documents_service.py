@@ -1,10 +1,12 @@
 import re
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_qdrant import QdrantVectorStore
+from qdrant_client.http import models
 
 from app.core.config import settings
 from app.database.connections import qdrant_client
@@ -71,11 +73,14 @@ def import_document_and_index(
     title: str,
     category: DocumentCategory,
     description: str = "",
+    realized_at: datetime | None = None,
 ) -> ImportDocumentResponse:
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nom de fichier manquant.")
     if not title.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le titre est obligatoire.")
+    if realized_at is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Date de realisation obligatoire.")
 
     validate_document_extension(file.filename)
     settings.uploads_path.mkdir(parents=True, exist_ok=True)
@@ -93,12 +98,14 @@ def import_document_and_index(
             file_size=len(payload),
             file_type=file.content_type or "application/octet-stream",
             description=description,
+            realized_at=realized_at,
         )
     else:
         model = DocumentModel.new_processing(
             title=title,
             category=category.value,
             description=description,
+            realized_at=realized_at,
             file_path=str(destination),
             file_size=len(payload),
             file_type=file.content_type or "application/octet-stream",
@@ -121,6 +128,50 @@ def import_document_and_index(
             chunksCount=0,
             error=str(exc),
         )
+
+
+def delete_document_permanently(document_id: str) -> None:
+    raw = _documents_repo.get_document_raw_by_id(document_id)
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
+
+    try:
+        collections = qdrant_client.get_collections()
+        names = {collection.name for collection in collections.collections}
+        if settings.qdrant_collection_name in names:
+            qdrant_client.delete(
+                collection_name=settings.qdrant_collection_name,
+                points_selector=models.FilterSelector(
+                    filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="metadata.document_id",
+                                match=models.MatchValue(value=document_id),
+                            )
+                        ]
+                    )
+                ),
+                wait=True,
+            )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Suppression Qdrant impossible: %s" % (exc,),
+        ) from exc
+
+    raw = _documents_repo.hard_delete_document(document_id)
+
+    file_path = raw.get("filePath")
+    if isinstance(file_path, str) and file_path.strip():
+        try:
+            Path(file_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    try:
+        (settings.indexing_results_path / (document_id + ".txt")).unlink(missing_ok=True)
+    except Exception:
+        pass
 
 
 def index_non_indexed_documents() -> IndexManyResponse:
@@ -219,6 +270,7 @@ def _search_documents_qdrant(query: str, limit: int, terms: list[str]) -> list[D
             isFavored=False,
             downloadUrl=f"/api/chat/documents/{document_id}/download",
             createdAt=None,
+            realizedAt=None,
         )
         ordered_ids.append(document_id)
         if len(ordered_ids) >= limit:
@@ -229,7 +281,7 @@ def _search_documents_qdrant(query: str, limit: int, terms: list[str]) -> list[D
 
     doc_map = _documents_repo.get_active_documents_fields_by_ids(
         ordered_ids,
-        {"title": 1, "category": 1, "description": 1, "isFavored": 1, "createdAt": 1},
+        {"title": 1, "category": 1, "description": 1, "isFavored": 1, "createdAt": 1, "realizedAt": 1},
     )
 
     enriched: list[DocumentSearchResult] = []
@@ -248,6 +300,7 @@ def _search_documents_qdrant(query: str, limit: int, terms: list[str]) -> list[D
             item.description = str(raw.get("description", ""))
             item.isFavored = bool(raw.get("isFavored", False))
             item.createdAt = raw.get("createdAt")
+            item.realizedAt = raw.get("realizedAt")
         enriched.append(item)
 
     return enriched
@@ -277,6 +330,7 @@ def search_documents(*, query: str, limit: int = 20) -> list[DocumentSearchResul
                     isFavored=doc.is_favored,
                     downloadUrl=f"/api/chat/documents/{doc.id}/download",
                     createdAt=doc.created_at,
+                    realizedAt=doc.realized_at,
                 )
             )
         return results
@@ -297,9 +351,16 @@ def list_favorite_documents(limit: int = 50) -> list[DocumentSearchResult]:
                 isFavored=doc.is_favored,
                 downloadUrl=f"/api/chat/documents/{doc.id}/download",
                 createdAt=doc.created_at,
+                realizedAt=doc.realized_at,
             )
         )
     return results
+
+
+
+
+def count_favorite_documents() -> int:
+    return int(_documents_repo.count_favorite_documents())
 
 
 def set_document_favorite(document_id: str, *, is_favored: bool) -> DocumentFavoriteResponse:

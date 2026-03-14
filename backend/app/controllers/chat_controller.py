@@ -1,5 +1,5 @@
-from app.schemas import AskQuestionRequest
-from app.services.chat_service import create_chat_question, download_document_file, list_question_sources
+﻿from app.schemas import AskQuestionRequest
+from app.services.chat_service import create_chat_question, download_document_file, list_question_sources, list_question_suggestions
 
 
 def create_question_controller(payload: AskQuestionRequest):
@@ -16,3 +16,10 @@ def get_question_sources_controller(question_id: str):
 
 def download_source_document_controller(document_id: str):
     return download_document_file(document_id)
+
+
+
+def get_question_suggestions_controller(query: str, limit: int = 5):
+    return list_question_suggestions(query, limit=limit)
+
+

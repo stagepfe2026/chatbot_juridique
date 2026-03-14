@@ -1,0 +1,1766 @@
+diff --git a/backend/app/api/documents.py b/backend/app/api/documents.py
+index c1367e0..1747dbd 100644
+--- a/backend/app/api/documents.py
++++ b/backend/app/api/documents.py
+@@ -1,7 +1,8 @@
+-from fastapi import APIRouter, Depends, File, Form, UploadFile
++from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+ 
+ from app.auth import require_role
+ from app.controllers.documents_controller import (
++    delete_document_controller,
+     document_points_controller,
+     import_document_controller,
+     index_existing_documents_controller,
+@@ -31,15 +32,22 @@ def import_document(
+     title: str = Form(...),
+     category: DocumentCategory = Form(...),
+     description: str = Form(default=""),
++    realizedAt: str = Form(...),
+ ):
+     return import_document_controller(
+         file=file,
+         title=title,
+         category=category,
+         description=description,
++        realized_at=realizedAt,
+     )
+ 
+ 
++@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
++def delete_document(document_id: str):
++    return delete_document_controller(document_id)
++
++
+ @router.post("/index-existing", response_model=IndexManyResponse)
+ def index_existing_documents():
+     return index_existing_documents_controller()
+diff --git a/backend/app/controllers/documents_controller.py b/backend/app/controllers/documents_controller.py
+index d1844a3..39bcc56 100644
+--- a/backend/app/controllers/documents_controller.py
++++ b/backend/app/controllers/documents_controller.py
+@@ -1,7 +1,10 @@
+-from fastapi import UploadFile
++from datetime import date, datetime, timezone
++
++from fastapi import HTTPException, UploadFile, status
+ 
+ from app.schemas import DocumentCategory
+ from app.services.documents_service import (
++    delete_document_permanently,
+     get_document_points,
+     get_qdrant_health_status,
+     get_qdrant_stats,
+@@ -20,16 +23,36 @@ def import_document_controller(
+     file: UploadFile,
+     title: str,
+     category: DocumentCategory,
++    realized_at: str = "",
+     description: str = "",
+ ):
++    if not realized_at:
++        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Date de realisation obligatoire.")
++
++    try:
++        realized_date = date.fromisoformat(realized_at)
++    except Exception as exc:
++        raise HTTPException(
++            status_code=status.HTTP_400_BAD_REQUEST,
++            detail="Date de realisation invalide (AAAA-MM-JJ).",
++        ) from exc
++
++    realized_dt = datetime(realized_date.year, realized_date.month, realized_date.day, tzinfo=timezone.utc)
++
+     return import_document_and_index(
+         file=file,
+         title=title,
+         category=category,
+         description=description,
++        realized_at=realized_dt,
+     )
+ 
+ 
++def delete_document_controller(document_id: str) -> None:
++    delete_document_permanently(document_id)
++    return None
++
++
+ def index_existing_documents_controller():
+     return index_non_indexed_documents()
+ 
+@@ -47,4 +70,4 @@ def qdrant_stats_controller():
+ 
+ 
+ def document_points_controller(document_id: str, limit: int = 100):
+-    return get_document_points(document_id=document_id, limit=limit)
++    return get_document_points(document_id=document_id, limit=limit)
+diff --git a/backend/app/models/document.py b/backend/app/models/document.py
+index 3552dba..cd6e957 100644
+--- a/backend/app/models/document.py
++++ b/backend/app/models/document.py
+@@ -11,6 +11,7 @@ class DocumentModel:
+     category: str
+     description: str
+     document_status: str
++    realized_at: datetime | None
+     file_path: str
+     file_size: int
+     file_type: str
+@@ -30,6 +31,7 @@ class DocumentModel:
+         title: str,
+         category: str,
+         description: str,
++        realized_at: datetime | None = None,
+         file_path: str,
+         file_size: int,
+         file_type: str,
+@@ -39,6 +41,7 @@ class DocumentModel:
+             category=category,
+             description=description.strip(),
+             document_status=DocumentStatus.PROCESSING.value,
++            realized_at=realized_at,
+             file_path=file_path,
+             file_size=file_size,
+             file_type=file_type,
+@@ -54,6 +57,7 @@ class DocumentModel:
+             category=str(raw.get("category", "")),
+             description=str(raw.get("description", "")),
+             document_status=str(raw.get("documentStatus", DocumentStatus.PROCESSING.value)),
++            realized_at=raw.get("realizedAt"),
+             file_path=str(raw.get("filePath", "")),
+             file_size=int(raw.get("fileSize", 0)),
+             file_type=str(raw.get("fileType", "application/octet-stream")),
+@@ -72,6 +76,7 @@ class DocumentModel:
+             "category": self.category,
+             "description": self.description,
+             "documentStatus": self.document_status,
++            "realizedAt": self.realized_at,
+             "filePath": self.file_path,
+             "fileSize": self.file_size,
+             "fileType": self.file_type,
+@@ -90,6 +95,7 @@ class DocumentModel:
+             category=DocumentCategory(self.category),
+             description=self.description,
+             documentStatus=DocumentStatus(self.document_status),
++            realizedAt=self.realized_at,
+             filePath=self.file_path,
+             fileSize=self.file_size,
+             fileType=self.file_type,
+diff --git a/backend/app/repositories/documents_repository.py b/backend/app/repositories/documents_repository.py
+index 663d016..0fa9644 100644
+--- a/backend/app/repositories/documents_repository.py
++++ b/backend/app/repositories/documents_repository.py
+@@ -1,3 +1,4 @@
++from datetime import datetime
+ from typing import Any
+ 
+ from bson import ObjectId
+@@ -43,6 +44,7 @@ class DocumentsRepository:
+         file_size: int,
+         file_type: str,
+         description: str,
++        realized_at: datetime | None,
+     ) -> None:
+         get_documents_collection().update_one(
+             {"_id": self._parse_document_id(document_id), "deletedAt": None},
+@@ -52,6 +54,7 @@ class DocumentsRepository:
+                     "fileSize": file_size,
+                     "fileType": file_type,
+                     "description": description.strip(),
++                    "realizedAt": realized_at,
+                     "documentStatus": DocumentStatus.PROCESSING.value,
+                     "indexError": None,
+                 }
+@@ -153,6 +156,17 @@ class DocumentsRepository:
+         cursor = get_documents_collection().find(query).sort("createdAt", -1).limit(limit)
+         return [DocumentModel.from_mongo(item) for item in cursor]
+ 
++    def hard_delete_document(self, document_id: str) -> dict[str, Any]:
++        oid = self._parse_document_id(document_id)
++        raw = get_documents_collection().find_one({"_id": oid})
++        if not raw:
++            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
++        get_documents_collection().delete_one({"_id": oid})
++        return raw
++
++    def get_document_raw_by_id(self, document_id: str) -> dict[str, Any] | None:
++        return get_documents_collection().find_one({"_id": self._parse_document_id(document_id)})
++
+     @staticmethod
+     def _parse_document_id(document_id: str) -> ObjectId:
+         try:
+diff --git a/backend/app/schemas/__init__.py b/backend/app/schemas/__init__.py
+index d1ce7a5..b2ca985 100644
+--- a/backend/app/schemas/__init__.py
++++ b/backend/app/schemas/__init__.py
+@@ -23,6 +23,7 @@ class DocumentOut(BaseModel):
+     category: DocumentCategory
+     description: str = ""
+     documentStatus: DocumentStatus
++    realizedAt: datetime | None = None
+     filePath: str
+     fileSize: int
+     fileType: str
+@@ -143,4 +144,4 @@ class LoginRequest(BaseModel):
+ 
+ class LoginResponse(BaseModel):
+     user: AuthUser
+-    sessionExpiresAt: datetime
++    sessionExpiresAt: datetime
+diff --git a/backend/app/services/documents_service.py b/backend/app/services/documents_service.py
+index 564aaa2..e99b058 100644
+--- a/backend/app/services/documents_service.py
++++ b/backend/app/services/documents_service.py
+@@ -1,10 +1,12 @@
+ import re
++from datetime import datetime
+ from pathlib import Path
+ from uuid import uuid4
+ 
+ from fastapi import HTTPException, UploadFile, status
+ from langchain_community.embeddings import FastEmbedEmbeddings
+ from langchain_qdrant import QdrantVectorStore
++from qdrant_client.http import models
+ 
+ from app.core.config import settings
+ from app.database.connections import qdrant_client
+@@ -71,11 +73,14 @@ def import_document_and_index(
+     title: str,
+     category: DocumentCategory,
+     description: str = "",
++    realized_at: datetime | None = None,
+ ) -> ImportDocumentResponse:
+     if not file.filename:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nom de fichier manquant.")
+     if not title.strip():
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le titre est obligatoire.")
++    if realized_at is None:
++        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Date de realisation obligatoire.")
+ 
+     validate_document_extension(file.filename)
+     settings.uploads_path.mkdir(parents=True, exist_ok=True)
+@@ -93,12 +98,14 @@ def import_document_and_index(
+             file_size=len(payload),
+             file_type=file.content_type or "application/octet-stream",
+             description=description,
++            realized_at=realized_at,
+         )
+     else:
+         model = DocumentModel.new_processing(
+             title=title,
+             category=category.value,
+             description=description,
++            realized_at=realized_at,
+             file_path=str(destination),
+             file_size=len(payload),
+             file_type=file.content_type or "application/octet-stream",
+@@ -123,6 +130,50 @@ def import_document_and_index(
+         )
+ 
+ 
++def delete_document_permanently(document_id: str) -> None:
++    raw = _documents_repo.get_document_raw_by_id(document_id)
++    if not raw:
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
++
++    try:
++        collections = qdrant_client.get_collections()
++        names = {collection.name for collection in collections.collections}
++        if settings.qdrant_collection_name in names:
++            qdrant_client.delete(
++                collection_name=settings.qdrant_collection_name,
++                points_selector=models.FilterSelector(
++                    filter=models.Filter(
++                        must=[
++                            models.FieldCondition(
++                                key="metadata.document_id",
++                                match=models.MatchValue(value=document_id),
++                            )
++                        ]
++                    )
++                ),
++                wait=True,
++            )
++    except Exception as exc:
++        raise HTTPException(
++            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
++            detail="Suppression Qdrant impossible: %s" % (exc,),
++        ) from exc
++
++    raw = _documents_repo.hard_delete_document(document_id)
++
++    file_path = raw.get("filePath")
++    if isinstance(file_path, str) and file_path.strip():
++        try:
++            Path(file_path).unlink(missing_ok=True)
++        except Exception:
++            pass
++
++    try:
++        (settings.indexing_results_path / (document_id + ".txt")).unlink(missing_ok=True)
++    except Exception:
++        pass
++
++
+ def index_non_indexed_documents() -> IndexManyResponse:
+     total, indexed, failed = index_pending_documents()
+     return IndexManyResponse(total=total, indexed=indexed, failed=failed)
+diff --git a/frontend/src/App.css b/frontend/src/App.css
+index 7a595cc..84e7273 100644
+--- a/frontend/src/App.css
++++ b/frontend/src/App.css
+@@ -93,6 +93,779 @@
+   color: #fff;
+ }
+ 
++
++
++/* ===== JurisBot Admin UI ===== */
++.admin-app {
++  min-height: 100vh;
++  width: 100%;
++  background: var(--surface);
++  color: var(--text-main);
++}
++
++.jb-header {
++  position: sticky;
++  top: 0;
++  z-index: 20;
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 14px;
++  padding: 14px 18px;
++  background: rgba(255, 255, 255, 0.86);
++  backdrop-filter: blur(10px);
++  border-bottom: 1px solid rgba(30, 41, 59, 0.08);
++  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
++}
++
++.jb-brand {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++  min-width: 220px;
++}
++
++.jb-logo {
++  width: 46px;
++  height: 46px;
++  border-radius: 14px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  background: linear-gradient(135deg, #da0037 0%, #b0002e 100%);
++  color: #fff;
++  box-shadow: 0 10px 24px rgba(218, 0, 55, 0.22);
++}
++
++.jb-brand-title {
++  font-size: 20px;
++  line-height: 1.1;
++  font-weight: 850;
++  letter-spacing: -0.02em;
++}
++
++.jb-brand-sub {
++  margin-top: 2px;
++  color: rgba(15, 23, 42, 0.58);
++  font-size: 13px;
++  font-weight: 700;
++}
++
++.jb-nav {
++  display: flex;
++  gap: 10px;
++  align-items: center;
++  justify-content: flex-end;
++}
++
++.jb-actions {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++}
++
++
++.jb-nav-link {
++  display: inline-flex;
++  align-items: center;
++  gap: 10px;
++  padding: 12px 16px;
++  border-radius: 999px;
++  text-decoration: none;
++  font-weight: 850;
++  color: rgba(15, 23, 42, 0.75);
++  background: rgba(255, 255, 255, 0.7);
++  border: 1px solid rgba(30, 41, 59, 0.12);
++  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
++}
++
++.jb-nav-link.active {
++  color: #fff;
++  background: linear-gradient(135deg, #da0037 0%, #b0002e 100%);
++  border-color: rgba(218, 0, 55, 0.6);
++  box-shadow: 0 16px 34px rgba(218, 0, 55, 0.22);
++}
++
++.jb-nav-ico {
++  display: inline-flex;
++}
++
++.jb-logout {
++  display: inline-flex;
++  align-items: center;
++  gap: 10px;
++  padding: 12px 16px;
++  border-radius: 999px;
++  border: 1px solid rgba(30, 41, 59, 0.12);
++  background: rgba(255, 255, 255, 0.7);
++  color: rgba(15, 23, 42, 0.75);
++  font-weight: 850;
++  cursor: pointer;
++}
++
++.jb-logout:hover {
++  border-color: rgba(218, 0, 55, 0.35);
++}
++
++.admin-content {
++  flex: 1;
++  padding: 26px 18px 60px;
++}
++
++.jb-page {
++  width: 100%;
++  max-width: none;
++  margin: 0;
++}
++
++
++.jb-page-top {
++  display: flex;
++  justify-content: flex-end;
++  margin: 8px 0 14px;
++}
++
++.jb-link {
++  text-decoration: none;
++}
++
++.jb-back {
++  display: inline-flex;
++  padding: 10px 14px;
++  border-radius: 999px;
++  border: 1px solid rgba(30, 41, 59, 0.12);
++  background: rgba(255, 255, 255, 0.8);
++  color: rgba(15, 23, 42, 0.75);
++  font-weight: 850;
++}
++
++.jb-hero {
++  display: flex;
++  align-items: center;
++  gap: 18px;
++  padding: 22px 22px;
++  border-radius: 24px;
++  background: rgba(255, 255, 255, 0.78);
++  border: 1px solid rgba(30, 41, 59, 0.10);
++  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
++}
++
++.jb-hero-icon {
++  width: 54px;
++  height: 54px;
++  border-radius: 18px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  background: rgba(218, 0, 55, 0.12);
++  color: #da0037;
++  box-shadow: 0 16px 36px rgba(218, 0, 55, 0.16);
++}
++
++.jb-hero-title {
++  margin: 0;
++  font-size: clamp(1.55rem, 2.3vw, 2.2rem);
++  letter-spacing: -0.02em;
++}
++
++.jb-hero-subtitle {
++  margin: 4px 0 0;
++  color: rgba(15, 23, 42, 0.58);
++  font-weight: 700;
++}
++
++.jb-hero-main {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 16px;
++  width: 100%;
++  flex-wrap: wrap;
++}
++
++.jb-stats {
++  display: flex;
++  gap: 12px;
++  align-items: stretch;
++}
++
++.jb-stat {
++  min-width: 96px;
++  border-radius: 16px;
++  padding: 12px 14px;
++  border: 1px solid rgba(30, 41, 59, 0.10);
++  background: rgba(255, 255, 255, 0.9);
++}
++
++.jb-stat--ok {
++  border-color: rgba(22, 163, 74, 0.35);
++  background: rgba(240, 253, 244, 0.9);
++  color: #166534;
++}
++
++.jb-stat--bad {
++  border-color: rgba(220, 38, 38, 0.25);
++  background: rgba(254, 242, 242, 0.9);
++  color: #991b1b;
++}
++
++.jb-stat-label {
++  font-size: 13px;
++  font-weight: 850;
++  opacity: 0.85;
++}
++
++.jb-stat-value {
++  margin-top: 4px;
++  font-size: 26px;
++  font-weight: 900;
++}
++
++.jb-card {
++  margin-top: 14px;
++  border-radius: 22px;
++  padding: 18px;
++  background: rgba(255, 255, 255, 0.76);
++  border: 1px solid rgba(30, 41, 59, 0.10);
++  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.07);
++}
++
++.jb-form {
++  display: grid;
++  gap: 16px;
++}
++
++.jb-grid {
++  display: grid;
++  gap: 14px;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++}
++
++.jb-field--full {
++  grid-column: 1 / -1;
++}
++
++.jb-label {
++  display: block;
++  font-weight: 900;
++  color: rgba(15, 23, 42, 0.8);
++  margin-bottom: 8px;
++}
++
++.jb-required {
++  color: #da0037;
++}
++
++.jb-input,
++.jb-select,
++.jb-textarea {
++  width: 100%;
++  padding: 12px 14px;
++  border-radius: 14px;
++  border: 1px solid rgba(30, 41, 59, 0.14);
++  background: rgba(255, 255, 255, 0.92);
++  font-size: 14px;
++}
++
++.jb-input:focus,
++.jb-select:focus,
++.jb-textarea:focus {
++  outline: none;
++  border-color: rgba(218, 0, 55, 0.55);
++  box-shadow: 0 0 0 4px rgba(218, 0, 55, 0.10);
++}
++
++.jb-textarea {
++  min-height: 120px;
++  resize: vertical;
++}
++
++.jb-dropzone {
++  border: 2px dashed rgba(100, 116, 139, 0.35);
++  border-radius: 18px;
++  background: rgba(255, 255, 255, 0.9);
++  padding: 20px;
++  cursor: pointer;
++  transition: border-color 0.15s ease, transform 0.15s ease;
++}
++
++.jb-dropzone.drag {
++  border-color: rgba(218, 0, 55, 0.65);
++  transform: translateY(-1px);
++}
++
++.jb-dropzone-inner {
++  display: flex;
++  gap: 14px;
++  align-items: center;
++}
++
++.jb-file-ico {
++  width: 52px;
++  height: 52px;
++  border-radius: 16px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  background: rgba(218, 0, 55, 0.12);
++  color: #da0037;
++}
++
++.jb-dropzone-title {
++  font-weight: 900;
++  color: rgba(15, 23, 42, 0.85);
++}
++
++.jb-dropzone-hint {
++  margin-top: 4px;
++  color: rgba(15, 23, 42, 0.55);
++  font-weight: 700;
++  font-size: 13px;
++}
++
++.jb-btn-primary {
++  width: 100%;
++  border: 0;
++  padding: 18px 18px;
++  border-radius: 18px;
++  background: linear-gradient(135deg, #da0037 0%, #b0002e 100%);
++  color: #fff;
++  font-weight: 900;
++  font-size: 16px;
++  cursor: pointer;
++  box-shadow: 0 18px 44px rgba(218, 0, 55, 0.24);
++}
++
++.jb-btn-primary:disabled {
++  opacity: 0.6;
++  cursor: not-allowed;
++}
++
++.jb-msg {
++  border-radius: 14px;
++  padding: 12px 14px;
++  font-weight: 800;
++}
++
++.jb-msg--error {
++  color: #7f1d1d;
++  background: rgba(254, 226, 226, 0.9);
++  border: 1px solid rgba(248, 113, 113, 0.35);
++}
++
++.jb-msg--success {
++  color: #14532d;
++  background: rgba(220, 252, 231, 0.9);
++  border: 1px solid rgba(34, 197, 94, 0.30);
++}
++
++.jb-card-title {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  font-weight: 900;
++  margin-bottom: 12px;
++}
++
++.jb-card-ico {
++  width: 34px;
++  height: 34px;
++  border-radius: 12px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  background: rgba(15, 23, 42, 0.05);
++}
++
++.jb-filters {
++  display: grid;
++  grid-template-columns: 1.2fr 0.9fr 0.9fr;
++  gap: 12px;
++}
++
++.jb-found {
++  margin-top: 12px;
++  font-weight: 800;
++  color: rgba(15, 23, 42, 0.6);
++}
++
++.jb-empty {
++  margin-top: 14px;
++  padding: 20px;
++  border-radius: 18px;
++  background: rgba(255, 255, 255, 0.75);
++  border: 1px dashed rgba(100, 116, 139, 0.35);
++  color: rgba(15, 23, 42, 0.65);
++  font-weight: 800;
++}
++
++.jb-list {
++  margin-top: 14px;
++  display: grid;
++  gap: 14px;
++}
++
++.jb-doc {
++  position: relative;
++  display: grid;
++  grid-template-columns: 64px 1fr;
++  gap: 16px;
++  align-items: start;
++  padding: 18px;
++  border-radius: 22px;
++  background: rgba(255, 255, 255, 0.78);
++  border: 1px solid rgba(30, 41, 59, 0.10);
++  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.06);
++}
++
++.jb-doc-ico {
++  width: 56px;
++  height: 56px;
++  border-radius: 18px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  background: linear-gradient(135deg, rgba(218, 0, 55, 0.16) 0%, rgba(218, 0, 55, 0.08) 100%);
++  color: #da0037;
++}
++
++.jb-doc-top {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  flex-wrap: wrap;
++}
++
++.jb-doc-title {
++  font-weight: 950;
++  font-size: 18px;
++  letter-spacing: -0.01em;
++}
++
++.jb-badge {
++  padding: 6px 10px;
++  border-radius: 999px;
++  border: 1px solid rgba(30, 41, 59, 0.12);
++  font-weight: 900;
++  font-size: 12px;
++  background: rgba(255, 255, 255, 0.85);
++}
++
++.jb-badge--indexed {
++  border-color: rgba(22, 163, 74, 0.35);
++  color: #166534;
++  background: rgba(240, 253, 244, 0.9);
++}
++
++.jb-badge--failed {
++  border-color: rgba(220, 38, 38, 0.25);
++  color: #991b1b;
++  background: rgba(254, 242, 242, 0.9);
++}
++
++.jb-badge--processing {
++  border-color: rgba(14, 116, 144, 0.25);
++  color: #0e7490;
++  background: rgba(224, 242, 254, 0.9);
++}
++
++.jb-tags {
++  margin-top: 8px;
++}
++
++.jb-tag {
++  display: inline-flex;
++  padding: 6px 10px;
++  border-radius: 999px;
++  background: rgba(218, 0, 55, 0.10);
++  color: #b0002e;
++  font-weight: 900;
++  font-size: 12px;
++}
++
++.jb-doc-desc {
++  margin: 12px 0 0;
++  color: rgba(15, 23, 42, 0.7);
++  font-weight: 700;
++}
++
++.jb-meta {
++  margin-top: 12px;
++  display: flex;
++  gap: 10px;
++  flex-wrap: wrap;
++  color: rgba(15, 23, 42, 0.58);
++  font-weight: 800;
++  font-size: 13px;
++}
++
++.jb-dot {
++  opacity: 0.55;
++}
++
++.jb-trash {
++  position: absolute;
++  top: 14px;
++  right: 14px;
++  width: 38px;
++  height: 38px;
++  border-radius: 12px;
++  border: 1px solid rgba(218, 0, 55, 0.25);
++  background: rgba(254, 242, 242, 0.9);
++  color: #da0037;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  cursor: pointer;
++}
++
++.jb-trash:disabled {
++  opacity: 0.6;
++  cursor: not-allowed;
++}
++
++.jb-pill {
++  display: inline-flex;
++  align-items: center;
++  gap: 10px;
++  padding: 12px 16px;
++  border-radius: 999px;
++  background: linear-gradient(135deg, #da0037 0%, #b0002e 100%);
++  color: #fff;
++  font-weight: 900;
++  box-shadow: 0 16px 34px rgba(218, 0, 55, 0.22);
++}
++
++.jb-pill-ico {
++  display: inline-flex;
++}
++
++
++
++.jb-snackbar {
++  position: fixed;
++  right: 18px;
++  bottom: 18px;
++  z-index: 50;
++  min-width: min(420px, calc(100vw - 36px));
++  display: flex;
++  align-items: center;
++  gap: 12px;
++  padding: 12px 14px;
++  border-radius: 16px;
++  border: 1px solid rgba(30, 41, 59, 0.14);
++  background: rgba(255, 255, 255, 0.95);
++  box-shadow: 0 22px 56px rgba(15, 23, 42, 0.18);
++  animation: jb-pop 0.18s ease-out;
++}
++
++@keyframes jb-pop {
++  from {
++    transform: translateY(6px);
++    opacity: 0;
++  }
++  to {
++    transform: translateY(0);
++    opacity: 1;
++  }
++}
++
++.jb-snackbar--success {
++  border-color: rgba(34, 197, 94, 0.30);
++}
++
++.jb-snackbar--error {
++  border-color: rgba(248, 113, 113, 0.35);
++}
++
++.jb-snackbar-msg {
++  flex: 1;
++  font-weight: 850;
++  color: rgba(15, 23, 42, 0.86);
++}
++
++.jb-snackbar-close {
++  width: 34px;
++  height: 34px;
++  border-radius: 12px;
++  border: 1px solid rgba(30, 41, 59, 0.12);
++  background: rgba(15, 23, 42, 0.02);
++  cursor: pointer;
++  font-size: 18px;
++  line-height: 1;
++}
++
++.jb-modal-backdrop {
++  position: fixed;
++  inset: 0;
++  background: rgba(15, 23, 42, 0.42);
++  z-index: 60;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  padding: 16px;
++}
++
++.jb-modal {
++  width: min(520px, 100%);
++}
++
++.jb-alert {
++  border-radius: 18px;
++  background: rgba(255, 255, 255, 0.96);
++  border: 1px solid rgba(30, 41, 59, 0.12);
++  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.22);
++  padding: 16px;
++}
++
++.jb-alert-title {
++  font-weight: 950;
++  font-size: 16px;
++}
++
++.jb-alert-msg {
++  margin-top: 8px;
++  color: rgba(15, 23, 42, 0.72);
++  font-weight: 750;
++  line-height: 1.4;
++}
++
++.jb-alert-actions {
++  display: flex;
++  justify-content: flex-end;
++  gap: 10px;
++  margin-top: 14px;
++}
++
++.jb-btn {
++  border: 1px solid rgba(30, 41, 59, 0.12);
++  background: rgba(255, 255, 255, 0.9);
++  padding: 10px 14px;
++  border-radius: 14px;
++  cursor: pointer;
++  font-weight: 900;
++}
++
++.jb-btn--ghost {
++  background: rgba(15, 23, 42, 0.02);
++}
++
++.jb-btn--danger {
++  border-color: rgba(218, 0, 55, 0.35);
++  background: rgba(254, 242, 242, 0.95);
++  color: #b0002e;
++}
++@media (max-width: 860px) {
++  .jb-nav {
++    justify-content: flex-end;
++  }
++
++  .jb-grid {
++    grid-template-columns: 1fr;
++  }
++
++  .jb-filters {
++    grid-template-columns: 1fr;
++  }
++
++  .jb-stats {
++    width: 100%;
++  }
++}
++
++
++/* ===== Admin Bar (User Style) ===== */
++.ab-header {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 14px;
++  padding: 14px 16px;
++  background: rgba(255, 255, 255, 0.90);
++  backdrop-filter: blur(10px);
++  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
++  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
++}
++
++.ab-brand {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++  min-width: 220px;
++}
++
++.ab-logo {
++  width: 44px;
++  height: 44px;
++  border-radius: 14px;
++  background: linear-gradient(135deg, #da0037 0%, #b0002e 100%);
++  color: #fff;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  box-shadow: 0 14px 34px rgba(218, 0, 55, 0.22);
++}
++
++.ab-title {
++  font-size: 20px;
++  line-height: 1.1;
++  font-weight: 800;
++  color: #0f172a;
++}
++
++.ab-sub {
++  margin-top: 2px;
++  font-size: 13px;
++  font-weight: 700;
++  color: rgba(15, 23, 42, 0.55);
++}
++
++.ab-nav {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 18px;
++  flex: 1;
++}
++
++.ab-link {
++  text-decoration: none;
++  color: rgba(15, 23, 42, 0.82);
++  font-weight: 800;
++  padding: 10px 14px;
++  border-radius: 999px;
++}
++
++.ab-link.active {
++  background: linear-gradient(135deg, #da0037 0%, #b0002e 100%);
++  color: #fff;
++  box-shadow: 0 14px 34px rgba(218, 0, 55, 0.22);
++}
++
++.ab-logout {
++  border: 0;
++  background: transparent;
++  font-weight: 900;
++  color: #da0037;
++  cursor: pointer;
++  padding: 10px 12px;
++  border-radius: 12px;
++}
++
++.ab-logout:hover {
++  background: rgba(218, 0, 55, 0.06);
++}
++
++@media (max-width: 860px) {
++  .ab-nav {
++    justify-content: flex-end;
++    gap: 10px;
++  }
++
++  .ab-brand {
++    min-width: 0;
++  }
++}
+ .admin-content,
+ .user-content {
+   flex: 1;
+@@ -2695,7 +3468,10 @@ html,
+ body,
+ #root {
+   height: 100%;
+-  overflow: hidden;
++}
++
++body {
++  overflow: auto;
+ }
+ 
+ .user-app,
+diff --git a/frontend/src/admin/layouts/AdminLayout.tsx b/frontend/src/admin/layouts/AdminLayout.tsx
+index 2c12371..dde5bed 100644
+--- a/frontend/src/admin/layouts/AdminLayout.tsx
++++ b/frontend/src/admin/layouts/AdminLayout.tsx
+@@ -1,8 +1,19 @@
+ import { NavLink, Outlet, useNavigate } from "react-router-dom";
+ import { useAuth } from "../../auth/AuthContext";
+ 
++function ScaleIcon() {
++  return (
++    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
++      <path d="M12 3v18" />
++      <path d="M6 7h12" />
++      <path d="M7 7l-3 6h6l-3-6z" />
++      <path d="M17 7l-3 6h6l-3-6z" />
++    </svg>
++  );
++}
++
+ export default function AdminLayout() {
+-  const { user, logout } = useAuth();
++  const { logout } = useAuth();
+   const navigate = useNavigate();
+ 
+   async function onLogout() {
+@@ -13,40 +24,34 @@ export default function AdminLayout() {
+   return (
+     <div className="admin-app">
+       <div className="admin-shell">
+-        <header className="admin-header">
+-          <div className="header-left">
+-            <div className="header-icon">O</div>
++        <header className="ab-header">
++          <div className="ab-brand">
++            <div className="ab-logo" aria-hidden="true">
++              <ScaleIcon />
++            </div>
+             <div>
+-              <div className="admin-brand">Gestion Documentaire</div>
+-              <div className="user-status">
+-                Administration - {user?.prenom} {user?.nom}
+-              </div>
++              <div className="ab-title">JurisBot</div>
++              <div className="ab-sub">Administration</div>
+             </div>
+           </div>
+-          <nav className="admin-nav">
+-            <NavLink
+-              to="/admin/documents"
+-              className={({ isActive }) => `admin-nav-link${isActive ? " active" : ""}`}
+-            >
+-              Documents
+-            </NavLink>
++
++          <nav className="ab-nav">
+             <NavLink
+               to="/admin/documents/import"
+-              className={({ isActive }) => `admin-nav-link${isActive ? " active" : ""}`}
++              className={({ isActive }) => `ab-link${isActive ? " active" : ""}`}
+             >
+               Importer
+             </NavLink>
+-            <NavLink
+-              to="/admin/conversations"
+-              className={({ isActive }) => `admin-nav-link${isActive ? " active" : ""}`}
+-            >
+-              Conversations
++            <NavLink to="/admin/documents" className={({ isActive }) => `ab-link${isActive ? " active" : ""}`}>
++              Documents
+             </NavLink>
+-            <button type="button" className="admin-nav-link nav-button" onClick={onLogout}>
+-              Deconnexion
+-            </button>
+           </nav>
++
++          <button type="button" className="ab-logout" onClick={onLogout}>
++            Deconnexion
++          </button>
+         </header>
++
+         <main className="admin-content">
+           <Outlet />
+         </main>
+diff --git a/frontend/src/admin/pages/Documents/DocumentsImportPage.tsx b/frontend/src/admin/pages/Documents/DocumentsImportPage.tsx
+index 8ec79b9..085e180 100644
+--- a/frontend/src/admin/pages/Documents/DocumentsImportPage.tsx
++++ b/frontend/src/admin/pages/Documents/DocumentsImportPage.tsx
+@@ -1,5 +1,6 @@
+ import { useMemo, useRef, useState } from "react";
+ import { Link } from "react-router-dom";
++import Snackbar from "../../../components/Snackbar";
+ import { importDocument } from "../../../services/admin.service";
+ import type { DocumentCategory, ImportDocumentForm } from "../../../models/document.models";
+ import { guessTitleFromFilename, validateFile } from "../../../utils/fileValidation";
+@@ -15,25 +16,41 @@ const initialForm: ImportDocumentForm = {
+   file: null,
+   title: "",
+   category: "",
++  realizedAt: "",
+   description: "",
+ };
+ 
+ export default function DocumentsImportPage() {
+   const [form, setForm] = useState<ImportDocumentForm>(initialForm);
+   const [fileError, setFileError] = useState<string | null>(null);
+-  const [submitError, setSubmitError] = useState<string | null>(null);
+   const [isSubmitting, setIsSubmitting] = useState(false);
+-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
++  const [isDragOver, setIsDragOver] = useState(false);
+   const fileInputRef = useRef<HTMLInputElement | null>(null);
+ 
++  const [snack, setSnack] = useState<{ open: boolean; message: string; variant: "success" | "error" | "info" }>(
++    {
++      open: false,
++      message: "",
++      variant: "info",
++    }
++  );
++
++  function showSnack(message: string, variant: "success" | "error" | "info") {
++    setSnack({ open: true, message, variant });
++  }
++
+   const canSubmit = useMemo(() => {
+-    return !!form.file && form.title.trim().length > 0 && !!form.category && !fileError && !isSubmitting;
+-  }, [form.file, form.title, form.category, fileError, isSubmitting]);
++    return (
++      !!form.file &&
++      form.title.trim().length > 0 &&
++      !!form.category &&
++      !!form.realizedAt &&
++      !fileError &&
++      !isSubmitting
++    );
++  }, [form.file, form.title, form.category, form.realizedAt, fileError, isSubmitting]);
+ 
+   function onPickFile(file: File | null) {
+-    setSuccessMsg(null);
+-    setSubmitError(null);
+-
+     if (!file) {
+       setForm((prev) => ({ ...prev, file: null }));
+       setFileError(null);
+@@ -50,24 +67,22 @@ export default function DocumentsImportPage() {
+   }
+ 
+   async function onSubmit() {
+-    setSubmitError(null);
+-    setSuccessMsg(null);
+-
+-    if (!form.file) return setSubmitError("Veuillez selectionner un fichier.");
+-    if (fileError) return setSubmitError(fileError);
+-    if (!form.title.trim()) return setSubmitError("Le titre est obligatoire.");
+-    if (!form.category) return setSubmitError("La categorie est obligatoire.");
++    if (!form.file) return showSnack("Veuillez selectionner un fichier.", "error");
++    if (fileError) return showSnack(fileError, "error");
++    if (!form.title.trim()) return showSnack("Le titre est obligatoire.", "error");
++    if (!form.category) return showSnack("La categorie est obligatoire.", "error");
++    if (!form.realizedAt) return showSnack("La date de realisation est obligatoire.", "error");
+ 
+     try {
+       setIsSubmitting(true);
+       const res = await importDocument(form);
+ 
+       if (res.status === "FAILED") {
+-        setSubmitError(res.error || `Echec d'indexation pour ${res.filename}.`);
++        showSnack(res.error || `Echec d'indexation pour ${res.filename}.`, "error");
+         return;
+       }
+ 
+-      setSuccessMsg(`Document importe: ${res.filename} (statut: ${res.status}).`);
++      showSnack(`Document importe: ${res.filename} (statut: ${res.status}).`, "success");
+       setForm(initialForm);
+       setFileError(null);
+     } catch (e: unknown) {
+@@ -75,7 +90,7 @@ export default function DocumentsImportPage() {
+         typeof e === "object" && e !== null && "message" in e
+           ? String((e as { message?: unknown }).message ?? "Erreur lors de l'import.")
+           : "Erreur lors de l'import.";
+-      setSubmitError(message);
++      showSnack(message, "error");
+     } finally {
+       setIsSubmitting(false);
+     }
+@@ -98,16 +113,17 @@ export default function DocumentsImportPage() {
+       <section className="card">
+         <h3 className="card-title">Fichier</h3>
+         <div
+-          className="dropzone"
++          className={`dropzone${isDragOver ? " drag" : ""}`}
++          onDragEnter={() => setIsDragOver(true)}
++          onDragLeave={() => setIsDragOver(false)}
+           onDragOver={(e) => e.preventDefault()}
+           onDrop={(e) => {
+             e.preventDefault();
++            setIsDragOver(false);
+             const droppedFile = e.dataTransfer.files?.[0];
+             if (droppedFile) onPickFile(droppedFile);
+           }}
+         >
+-          <div style={{ fontSize: 18, marginBottom: 10, fontWeight: 700 }}>Glissez-deposez un fichier ici</div>
+-          <div style={{ marginBottom: 12, opacity: 0.8 }}>ou</div>
+           <input
+             ref={fileInputRef}
+             type="file"
+@@ -115,39 +131,42 @@ export default function DocumentsImportPage() {
+             style={{ display: "none" }}
+             onChange={(e) => onPickFile(e.target.files?.[0] || null)}
+           />
++
++          <div style={{ fontSize: 18, marginBottom: 10, fontWeight: 800 }}>
++            {form.file ? form.file.name : "Cliquez ou glissez-deposez un fichier"}
++          </div>
++          <div style={{ marginBottom: 12, opacity: 0.8 }}>PDF, DOC, DOCX ? Maximum 50MB</div>
++
+           <button type="button" className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
+-            Parcourir les fichiers
++            Parcourir
+           </button>
+-          <div style={{ marginTop: 12, fontSize: 13, opacity: 0.8 }}>Formats acceptes : PDF, DOCX</div>
+-          {form.file && (
+-            <div style={{ marginTop: 10, fontSize: 13 }}>
+-              <strong>Fichier :</strong> {form.file.name}
+-            </div>
+-          )}
++
+           {fileError && <div className="message-error">{fileError}</div>}
+         </div>
+       </section>
+ 
+       <section className="card">
+         <h3 className="card-title">Metadonnees</h3>
+-        <div className="field-grid">
++
++        <div className="two-col">
+           <div>
+-            <label className="field-label">Titre</label>
++            <label className="field-label">Titre du document *</label>
+             <input
+               className="input"
+               value={form.title}
+               onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+-              placeholder="Ex: Loi de finances 2026"
++              placeholder="Ex: Loi de Finances 2024"
+             />
+           </div>
++
+           <div>
+-            <label className="field-label">Categorie</label>
++            <label className="field-label">Categorie *</label>
+             <select
+               className="select"
+               value={form.category}
+               onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value as DocumentCategory }))}
+             >
+-              <option value="">Selectionner...</option>
++              <option value="">Selectionner une categorie</option>
+               {categoryOptions.map((opt) => (
+                 <option key={opt.value} value={opt.value}>
+                   {opt.label}
+@@ -155,16 +174,27 @@ export default function DocumentsImportPage() {
+               ))}
+             </select>
+           </div>
++
+           <div>
+-            <label className="field-label">Description</label>
+-            <textarea
+-              className="textarea"
+-              value={form.description}
+-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+-              placeholder="Description du document juridique..."
++            <label className="field-label">Date de realisation *</label>
++            <input
++              className="input"
++              type="date"
++              value={form.realizedAt}
++              onChange={(e) => setForm((prev) => ({ ...prev, realizedAt: e.target.value }))}
+             />
+           </div>
+         </div>
++
++        <div style={{ marginTop: 12 }}>
++          <label className="field-label">Description</label>
++          <textarea
++            className="textarea"
++            value={form.description}
++            onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
++            placeholder="Decrivez brievement le contenu du document..."
++          />
++        </div>
+       </section>
+ 
+       <div className="actions">
+@@ -174,8 +204,6 @@ export default function DocumentsImportPage() {
+           onClick={() => {
+             setForm(initialForm);
+             setFileError(null);
+-            setSubmitError(null);
+-            setSuccessMsg(null);
+           }}
+           disabled={isSubmitting}
+         >
+@@ -186,8 +214,12 @@ export default function DocumentsImportPage() {
+         </button>
+       </div>
+ 
+-      {submitError && <div className="message-error">{submitError}</div>}
+-      {successMsg && <div className="message-success">{successMsg}</div>}
++      <Snackbar
++        open={snack.open}
++        message={snack.message}
++        variant={snack.variant}
++        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
++      />
+     </div>
+   );
+ }
+diff --git a/frontend/src/admin/pages/Documents/DocumentsListPage.tsx b/frontend/src/admin/pages/Documents/DocumentsListPage.tsx
+index 6f54c69..66be513 100644
+--- a/frontend/src/admin/pages/Documents/DocumentsListPage.tsx
++++ b/frontend/src/admin/pages/Documents/DocumentsListPage.tsx
+@@ -1,6 +1,8 @@
+-import { useEffect, useState } from "react";
++import { useEffect, useMemo, useState } from "react";
+ import { Link } from "react-router-dom";
+-import { listDocuments } from "../../../services/admin.service";
++import ConfirmDialog from "../../../components/ConfirmDialog";
++import Snackbar from "../../../components/Snackbar";
++import { deleteDocument, listDocuments } from "../../../services/admin.service";
+ import type { Document, DocumentCategory, DocumentStatus } from "../../../models/document.models";
+ 
+ const categoryLabel: Record<DocumentCategory, string> = {
+@@ -12,15 +14,41 @@ const categoryLabel: Record<DocumentCategory, string> = {
+ 
+ const statusLabel: Record<DocumentStatus, string> = {
+   PROCESSING: "En cours",
+-  INDEXED: "Indexé",
+-  FAILED: "Échec",
++  INDEXED: "Indexe",
++  FAILED: "Echoue",
+ };
+ 
++function formatDate(value?: string | null): string {
++  if (!value) return "-";
++  const d = new Date(value);
++  if (Number.isNaN(d.getTime())) return "-";
++  return d.toLocaleDateString("fr-FR");
++}
++
+ export default function DocumentsListPage() {
+   const [documents, setDocuments] = useState<Document[]>([]);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState<string | null>(null);
+ 
++  const [query, setQuery] = useState("");
++  const [status, setStatus] = useState<DocumentStatus | "">("");
++  const [category, setCategory] = useState<DocumentCategory | "">("");
++
++  const [confirmDoc, setConfirmDoc] = useState<Document | null>(null);
++  const [deletingId, setDeletingId] = useState<string | null>(null);
++
++  const [snack, setSnack] = useState<{ open: boolean; message: string; variant: "success" | "error" | "info" }>(
++    {
++      open: false,
++      message: "",
++      variant: "info",
++    }
++  );
++
++  function showSnack(message: string, variant: "success" | "error" | "info") {
++    setSnack({ open: true, message, variant });
++  }
++
+   useEffect(() => {
+     async function load() {
+       try {
+@@ -38,51 +66,149 @@ export default function DocumentsListPage() {
+         setLoading(false);
+       }
+     }
++
+     void load();
+   }, []);
+ 
++  const filtered = useMemo(() => {
++    const q = query.trim().toLowerCase();
++    return documents.filter((doc) => {
++      if (status && doc.documentStatus !== status) return false;
++      if (category && doc.category !== category) return false;
++      if (!q) return true;
++      const blob = `${doc.title} ${doc.description || ""}`.toLowerCase();
++      return blob.includes(q);
++    });
++  }, [documents, query, status, category]);
++
++  const stats = useMemo(() => {
++    const total = documents.length;
++    const indexed = documents.filter((d) => d.documentStatus === "INDEXED").length;
++    const failed = documents.filter((d) => d.documentStatus === "FAILED").length;
++    return { total, indexed, failed };
++  }, [documents]);
++
++  async function confirmDelete() {
++    if (!confirmDoc || deletingId) return;
++    const doc = confirmDoc;
++
++    try {
++      setDeletingId(doc.id);
++      await deleteDocument(doc.id);
++      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
++      showSnack("Document supprime definitivement.", "success");
++    } catch (e: unknown) {
++      const message =
++        typeof e === "object" && e !== null && "message" in e
++          ? String((e as { message?: unknown }).message ?? "Erreur de suppression.")
++          : "Erreur de suppression.";
++      showSnack(message, "error");
++    } finally {
++      setDeletingId(null);
++      setConfirmDoc(null);
++    }
++  }
++
+   return (
+     <div className="page">
+       <div className="page-toolbar">
+         <div>
+           <h1 className="page-title">Documents</h1>
+-          <p className="page-subtitle">Liste des documents juridiques importés.</p>
++          <p className="page-subtitle">
++            Total: {stats.total} ? Indexes: {stats.indexed} ? Echoues: {stats.failed}
++          </p>
+         </div>
+         <Link to="/admin/documents/import" style={{ textDecoration: "none" }}>
+           <button type="button" className="btn btn-primary">
+-            Importer un document
++            Importer
+           </button>
+         </Link>
+       </div>
+ 
++      <section className="card">
++        <h3 className="card-title">Filtres</h3>
++        <div className="two-col">
++          <div>
++            <label className="field-label">Recherche</label>
++            <input
++              className="input"
++              value={query}
++              onChange={(e) => setQuery(e.target.value)}
++              placeholder="Rechercher un document..."
++            />
++          </div>
++
++          <div>
++            <label className="field-label">Statut</label>
++            <select className="select" value={status} onChange={(e) => setStatus(e.target.value as DocumentStatus | "")}>
++              <option value="">Tous</option>
++              <option value="PROCESSING">En cours</option>
++              <option value="INDEXED">Indexe</option>
++              <option value="FAILED">Echoue</option>
++            </select>
++          </div>
++
++          <div>
++            <label className="field-label">Categorie</label>
++            <select
++              className="select"
++              value={category}
++              onChange={(e) => setCategory(e.target.value as DocumentCategory | "")}
++            >
++              <option value="">Toutes</option>
++              {Object.entries(categoryLabel).map(([key, label]) => (
++                <option key={key} value={key}>
++                  {label}
++                </option>
++              ))}
++            </select>
++          </div>
++        </div>
++        <div style={{ marginTop: 8, color: "#5d6475", fontWeight: 700 }}>{filtered.length} documents trouves</div>
++      </section>
++
+       {loading && <div className="card">Chargement des documents...</div>}
+       {error && <div className="message-error">{error}</div>}
+ 
+-      {!loading && !error && (!Array.isArray(documents) || documents.length === 0) && (
+-        <div className="empty-state">Aucun document à afficher pour le moment.</div>
++      {!loading && !error && filtered.length === 0 && (
++        <div className="empty-state">Aucun document a afficher pour le moment.</div>
+       )}
+ 
+-      {!loading && !error && Array.isArray(documents) && documents.length > 0 && (
++      {!loading && !error && filtered.length > 0 && (
+         <div className="card" style={{ overflowX: "auto" }}>
+           <table style={{ width: "100%", borderCollapse: "collapse" }}>
+             <thead>
+               <tr>
+                 <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>Titre</th>
++                <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>Categorie</th>
++                <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>Statut</th>
+                 <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>
+-                  Catégorie
++                  Realise le
+                 </th>
+-                <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>Statut</th>
+-                <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>Créé le</th>
++                <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>
++                  Indexe le
++                </th>
++                <th style={{ textAlign: "right", padding: "10px 8px", borderBottom: "1px solid #e7ecf5" }}>Action</th>
+               </tr>
+             </thead>
+             <tbody>
+-              {documents.map((doc) => (
++              {filtered.map((doc) => (
+                 <tr key={doc.id}>
+                   <td style={{ padding: "10px 8px", borderBottom: "1px solid #f0f3f9" }}>{doc.title}</td>
+                   <td style={{ padding: "10px 8px", borderBottom: "1px solid #f0f3f9" }}>{categoryLabel[doc.category]}</td>
+                   <td style={{ padding: "10px 8px", borderBottom: "1px solid #f0f3f9" }}>{statusLabel[doc.documentStatus]}</td>
+-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f0f3f9" }}>
+-                    {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
++                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f0f3f9" }}>{formatDate(doc.realizedAt)}</td>
++                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f0f3f9" }}>{formatDate(doc.indexedAt)}</td>
++                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f0f3f9", textAlign: "right" }}>
++                    <button
++                      type="button"
++                      className="btn btn-ghost"
++                      onClick={() => setConfirmDoc(doc)}
++                      disabled={deletingId === doc.id}
++                      style={{ color: "#da0037" }}
++                    >
++                      Supprimer
++                    </button>
+                   </td>
+                 </tr>
+               ))}
+@@ -90,6 +216,27 @@ export default function DocumentsListPage() {
+           </table>
+         </div>
+       )}
++
++      <ConfirmDialog
++        open={!!confirmDoc}
++        title="Suppression definitive"
++        message={
++          confirmDoc
++            ? `Supprimer definitivement "${confirmDoc.title}" ? Cette action supprime le document de MongoDB et de Qdrant.`
++            : ""
++        }
++        confirmText={deletingId ? "Suppression..." : "Supprimer"}
++        cancelText="Annuler"
++        onCancel={() => setConfirmDoc(null)}
++        onConfirm={() => void confirmDelete()}
++      />
++
++      <Snackbar
++        open={snack.open}
++        message={snack.message}
++        variant={snack.variant}
++        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
++      />
+     </div>
+   );
+ }
+diff --git a/frontend/src/models/document.models.ts b/frontend/src/models/document.models.ts
+index ffbb4f8..9180069 100644
+--- a/frontend/src/models/document.models.ts
++++ b/frontend/src/models/document.models.ts
+@@ -12,11 +12,15 @@ export interface Document {
+   category: DocumentCategory;
+   description: string;
+   documentStatus: DocumentStatus;
++  realizedAt?: string | null;
+   filePath: string;
+   fileSize: number;
+   fileType: string;
+   createdAt: string;
+-  deletedAt?: string;
++  deletedAt?: string | null;
++  indexedAt?: string | null;
++  chunksCount?: number | null;
++  indexError?: string | null;
+   isFavored?: boolean;
+ }
+ 
+@@ -40,6 +44,7 @@ export interface ImportDocumentForm {
+   file: File | null;
+   title: string;
+   category: DocumentCategory | "";
++  realizedAt: string;
+   description: string;
+ }
+ 
+diff --git a/frontend/src/services/admin.service.ts b/frontend/src/services/admin.service.ts
+index 7c1f710..0ac724a 100644
+--- a/frontend/src/services/admin.service.ts
++++ b/frontend/src/services/admin.service.ts
+@@ -11,6 +11,7 @@ export async function importDocument(form: ImportDocumentForm): Promise<ImportDo
+   data.append("file", form.file);
+   data.append("title", form.title);
+   data.append("category", form.category);
++  data.append("realizedAt", form.realizedAt);
+   data.append("description", form.description);
+ 
+   const res = await httpClient.post<ImportDocumentResponse>("/admin/documents/import", data, {
+@@ -20,6 +21,10 @@ export async function importDocument(form: ImportDocumentForm): Promise<ImportDo
+   return res.data;
+ }
+ 
++export async function deleteDocument(documentId: string): Promise<void> {
++  await httpClient.delete(`/admin/documents/${documentId}`);
++}
++
+ export async function listDocuments(): Promise<Document[]> {
+   const res = await httpClient.get<unknown>("/admin/documents");
+   const payload = res.data as
+@@ -38,4 +43,4 @@ export async function listDocuments(): Promise<Document[]> {
+ export async function listConversations(): Promise<Conversation[]> {
+   const res = await httpClient.get<Conversation[]>("/admin/conversations");
+   return Array.isArray(res.data) ? res.data : [];
+-}
++}
+diff --git a/frontend/src/user/layouts/UserLayout.tsx b/frontend/src/user/layouts/UserLayout.tsx
+index 95ed67f..c022f0b 100644
+--- a/frontend/src/user/layouts/UserLayout.tsx
++++ b/frontend/src/user/layouts/UserLayout.tsx
+@@ -1,33 +1,11 @@
+-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
++import { NavLink, Outlet, useNavigate } from "react-router-dom";
+ import { useAuth } from "../../auth/AuthContext";
+ 
+-function WorkspaceIcon() {
+-  return (
+-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+-      <path d="M8 3h6l4 4v14H6V3z" />
+-      <path d="M14 3v4h4" />
+-      <path d="M9 13h6" />
+-    </svg>
+-  );
+-}
+ 
+ export default function UserLayout() {
+   const { user, logout } = useAuth();
+   const navigate = useNavigate();
+-  const location = useLocation();
+ 
+-  const isChatPage = location.pathname.startsWith("/user/chat");
+-  const isSearchPage = location.pathname.startsWith("/user/recherche");
+-  const isFavoritesPage = location.pathname.startsWith("/user/favoris");
+-  const isHomePage = location.pathname.startsWith("/user/accueil");
+-
+-  function getPageTitle() {
+-    if (isChatPage) return "Assistant Juridique";
+-    if (isSearchPage) return "Recherche juridique";
+-    if (isFavoritesPage) return "Favoris";
+-    if (isHomePage) return "Accueil";
+-    return "Espace utilisateur";
+-  }
+ 
+   async function onLogout() {
+     await logout();

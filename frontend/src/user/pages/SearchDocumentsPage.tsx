@@ -17,7 +17,7 @@ function highlightText(text: string, terms: string[]) {
   const regex = new RegExp(`(${escaped.join("|")})`, "gi");
   const parts = text.split(regex);
   return parts.map((part, index) => {
-    const isMatch = terms.some((term) => part.toLowerCase() === term.toLowerCase());
+    const isMatch = terms.some((term) => part.toLowerCase() == term.toLowerCase());
     return isMatch ? (
       <mark key={`${part}-${index}`} className="search-highlight">
         {part}
@@ -35,13 +35,21 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString("fr-FR");
 }
 
+function sortTime(doc: DocumentSearchResult): number {
+  const value = doc.realizedAt || doc.createdAt;
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
 export default function SearchDocumentsPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<DocumentSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [favoriteBusy, setFavoriteBusy] = useState<Record<string, boolean>>({});
-  const [sortMode, setSortMode] = useState<"date" | "title" | "favorites">("date");
+  const [sortField, setSortField] = useState<"date" | "title">("date");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const terms = useMemo(() => query.trim().split(/\s+/).filter(Boolean), [query]);
@@ -62,7 +70,7 @@ export default function SearchDocumentsPage() {
       setResults(data);
     } catch (e: unknown) {
       const message =
-        typeof e === "object" && e !== null && "message" in e
+        typeof e == "object" && e != null && "message" in e
           ? String((e as { message?: unknown }).message ?? "Erreur lors de la recherche.")
           : "Erreur lors de la recherche.";
       setError(message);
@@ -79,6 +87,7 @@ export default function SearchDocumentsPage() {
       setFavoriteBusy((prev) => ({ ...prev, [item.id]: true }));
       const res = await setDocumentFavorite(item.id, next);
       setResults((prev) => prev.map((doc) => (doc.id === item.id ? { ...doc, isFavored: res.isFavored } : doc)));
+      window.dispatchEvent(new Event("favorites-changed"));
     } catch {
       setError("Impossible de mettre a jour les favoris.");
     } finally {
@@ -86,28 +95,19 @@ export default function SearchDocumentsPage() {
     }
   }
 
-  const filteredResults = useMemo(() => {
-    if (sortMode === "favorites") {
-      return results.filter((doc) => doc.isFavored);
-    }
-    return results;
-  }, [results, sortMode]);
-
   const sortedResults = useMemo(() => {
-    const items = [...filteredResults];
-    if (sortMode === "title") {
-      items.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortMode === "date") {
-      items.sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      });
-    }
-    return items;
-  }, [filteredResults, sortMode]);
+    const items = [...results];
 
-  const favoriteCount = results.filter((doc) => doc.isFavored).length;
+    if (sortField === "title") {
+      items.sort((a, b) => a.title.localeCompare(b.title, "fr", { sensitivity: "base" }));
+      if (sortDir === "desc") items.reverse();
+      return items;
+    }
+
+    items.sort((a, b) => sortTime(a) - sortTime(b));
+    if (sortDir === "desc") items.reverse();
+    return items;
+  }, [results, sortField, sortDir]);
 
   useEffect(() => {
     if (!selectedId && sortedResults.length > 0) {
@@ -119,6 +119,15 @@ export default function SearchDocumentsPage() {
   }, [sortedResults, selectedId]);
 
   const selectedDoc = sortedResults.find((doc) => doc.id === selectedId) ?? null;
+
+  function toggleSort(field: "date" | "title") {
+    if (sortField === field) {
+      setSortDir((prev) => (prev === "desc" ? "asc" : "desc"));
+      return;
+    }
+    setSortField(field);
+    setSortDir("desc");
+  }
 
   return (
     <div className="juris-search-page">
@@ -137,6 +146,7 @@ export default function SearchDocumentsPage() {
             />
           </form>
         </div>
+
         <div className="juris-search-filters">
           <span className="juris-filter-label">
             <Icon>
@@ -146,10 +156,11 @@ export default function SearchDocumentsPage() {
             </Icon>
             Trier par:
           </span>
+
           <button
             type="button"
-            className={`juris-filter-btn${sortMode === "date" ? " active" : ""}`}
-            onClick={() => setSortMode("date")}
+            className={`juris-filter-btn${sortField === "date" ? " active" : ""}`}
+            onClick={() => toggleSort("date")}
           >
             <Icon>
               <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -158,11 +169,13 @@ export default function SearchDocumentsPage() {
               <path d="M3 10h18" />
             </Icon>
             Date
+            {sortField === "date" && <span className="juris-sort-dir">{sortDir === "asc" ? "Asc" : "Desc"}</span>}
           </button>
+
           <button
             type="button"
-            className={`juris-filter-btn${sortMode === "title" ? " active" : ""}`}
-            onClick={() => setSortMode("title")}
+            className={`juris-filter-btn${sortField === "title" ? " active" : ""}`}
+            onClick={() => toggleSort("title")}
           >
             <Icon>
               <path d="M4 6h8" />
@@ -170,16 +183,7 @@ export default function SearchDocumentsPage() {
               <path d="M4 18h12" />
             </Icon>
             Titre
-          </button>
-          <button
-            type="button"
-            className={`juris-filter-btn${sortMode === "favorites" ? " active" : ""}`}
-            onClick={() => setSortMode("favorites")}
-          >
-            <Icon>
-              <path d="m12 3 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z" />
-            </Icon>
-            Favoris ({favoriteCount})
+            {sortField === "title" && <span className="juris-sort-dir">{sortDir === "asc" ? "A-Z" : "Z-A"}</span>}
           </button>
         </div>
       </section>
@@ -192,12 +196,11 @@ export default function SearchDocumentsPage() {
           {!loading && sortedResults.length === 0 && query.trim() && (
             <div className="empty-state">Aucun document trouve. Essayez un autre terme.</div>
           )}
-          {!query.trim() && !loading && (
-            <div className="empty-state">Lancez une recherche pour afficher les documents.</div>
-          )}
+          {!query.trim() && !loading && <div className="empty-state">Lancez une recherche pour afficher les documents.</div>}
 
           {sortedResults.map((doc) => {
             const isSelected = doc.id === selectedId;
+            const dateValue = doc.realizedAt || doc.createdAt;
             return (
               <button
                 key={doc.id}
@@ -210,7 +213,7 @@ export default function SearchDocumentsPage() {
                   <div className="juris-doc-subtitle">{highlightText(doc.description || doc.excerpt, terms)}</div>
                   <div className="juris-doc-meta">
                     <span className="juris-doc-tag">{doc.category.replace(/_/g, " ")}</span>
-                    {doc.createdAt && (
+                    {dateValue && (
                       <span className="juris-doc-date">
                         <Icon>
                           <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -218,11 +221,12 @@ export default function SearchDocumentsPage() {
                           <path d="M8 2v4" />
                           <path d="M3 10h18" />
                         </Icon>
-                        {formatDate(doc.createdAt)}
+                        {formatDate(dateValue)}
                       </span>
                     )}
                   </div>
                 </div>
+
                 <span
                   className={`juris-doc-star${doc.isFavored ? " active" : ""}`}
                   onClick={(e) => {
@@ -257,9 +261,10 @@ export default function SearchDocumentsPage() {
                   </Icon>
                 </button>
               </div>
+
               <div className="juris-doc-meta">
                 <span className="juris-doc-tag">{selectedDoc.category.replace(/_/g, " ")}</span>
-                {selectedDoc.createdAt && (
+                {(selectedDoc.realizedAt || selectedDoc.createdAt) && (
                   <span className="juris-doc-date">
                     <Icon>
                       <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -267,14 +272,16 @@ export default function SearchDocumentsPage() {
                       <path d="M8 2v4" />
                       <path d="M3 10h18" />
                     </Icon>
-                    {formatDate(selectedDoc.createdAt)}
+                    {formatDate(selectedDoc.realizedAt || selectedDoc.createdAt)}
                   </span>
                 )}
               </div>
+
               <div className="juris-detail-content">
                 <div className="juris-detail-label">Contenu:</div>
                 <p>{selectedDoc.excerpt || selectedDoc.description || ""}</p>
               </div>
+
               <a className="juris-detail-cta" href={selectedDoc.downloadUrl} target="_blank" rel="noreferrer">
                 Consulter le document complet
               </a>
