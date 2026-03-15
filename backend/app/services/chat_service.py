@@ -136,7 +136,6 @@ def download_document_file(document_id: str) -> FileResponse:
 
 
 
-def list_question_suggestions(query: str, limit: int = 5) -> list[str]:
-    return suggest_question_suggestions(query, limit=limit)
-
+def list_question_suggestions(query: str, user_id: str | None = None, limit: int = 5) -> list[str]:
+    return suggest_question_suggestions(query, user_id=user_id, limit=limit)
 

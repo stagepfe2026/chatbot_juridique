@@ -444,32 +444,142 @@ def get_source_file_for_question(question_id: str) -> SourceFile | None:
 
 
 
-def suggest_question_suggestions(query: str, limit: int = 5) -> list[str]:
+def _normalize_suggestion_text(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip().lower())
+
+
+def _tokenize_suggestion_text(value: str) -> list[str]:
+    return re.findall(r"\w+", _normalize_suggestion_text(value), flags=re.UNICODE)
+
+
+def _extract_meaningful_query_tokens(query: str) -> list[str]:
+    stopwords = {
+        "le", "la", "les", "de", "des", "du", "d", "un", "une", "et", "ou", "a", "au", "aux",
+        "dans", "sur", "pour", "par", "avec", "sans", "en", "est", "sont", "quel", "quels",
+        "quelle", "quelles", "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles",
+        "que", "quoi", "comment", "puis", "puisje", "peut", "peux", "avoir", "connaitre", "savoir",
+    }
+    return [token for token in _tokenize_suggestion_text(query) if token not in stopwords and len(token) > 2]
+
+
+def _extract_article_reference(text: str) -> str | None:
+    matches = re.findall(r"articles?\s+\d+(?:\s*(?:a|et|-|,)\s*\d+)*(?:\s+et\s+suivants?)?", text, flags=re.IGNORECASE)
+    if not matches:
+        return None
+    return re.sub(r"\s+", " ", matches[0]).strip()
+
+
+def _clean_document_title(title: str) -> str:
+    cleaned = re.sub(r"\bCOMPLET\b", "", str(title or ""), flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -:,.\n\t")
+    return cleaned
+
+
+def _build_subject_from_doc(query: str, doc: Document) -> str:
+    metadata = doc.metadata or {}
+    title = _clean_document_title(str(metadata.get("title", "")))
+    if title and not re.match(r"^articles?\s+\d+", title, flags=re.IGNORECASE):
+        return title
+
+    query_tokens = _extract_meaningful_query_tokens(query)
+    if query_tokens:
+        return " ".join(query_tokens[:8])
+
+    excerpt = re.sub(r"\s+", " ", doc.page_content[:160]).strip(" -:,.\n\t")
+    return excerpt
+
+
+def _build_doc_based_candidates(query: str, docs: list[Document]) -> list[str]:
+    query_text = " ".join(_extract_meaningful_query_tokens(query)) or query.strip()
+    candidates: list[str] = []
+
+    for doc in docs[:8]:
+        metadata = doc.metadata or {}
+        title = _clean_document_title(str(metadata.get("title", "")))
+        article_ref = _extract_article_reference(f"{title} {doc.page_content[:240]}")
+        subject = _build_subject_from_doc(query, doc)
+        if not subject:
+            continue
+
+        candidates.append(f"Quels sont les points essentiels concernant {subject} ?")
+        candidates.append(f"Quelles sont les conditions relatives a {subject} ?")
+        if article_ref and query_text:
+            candidates.append(f"Que prevoit {article_ref} concernant {query_text} ?")
+        elif query_text:
+            candidates.append(f"Que prevoit le document {subject} concernant {query_text} ?")
+
+        if title and title != subject:
+            candidates.append(f"Comment s'applique {title} ?")
+
+    return candidates
+
+
+def _score_suggestion_candidate(query: str, candidate: str) -> float:
+    normalized_query = _normalize_suggestion_text(query)
+    normalized_candidate = _normalize_suggestion_text(candidate)
+    if not normalized_query or not normalized_candidate:
+        return -1.0
+
+    query_tokens = _extract_meaningful_query_tokens(normalized_query) or _tokenize_suggestion_text(normalized_query)
+    candidate_tokens = _tokenize_suggestion_text(normalized_candidate)
+    if len(query_tokens) < 2:
+        return -1.0
+
+    overlap = sum(1 for token in query_tokens if token in candidate_tokens)
+    if overlap == 0:
+        return -1.0
+
+    score = overlap * 12
+    if normalized_query in normalized_candidate:
+        score += 20
+    if normalized_candidate.startswith("que prevoit"):
+        score += 4
+    if normalized_candidate.startswith("quels sont") or normalized_candidate.startswith("quelles sont"):
+        score += 3
+    score -= max(0, len(candidate_tokens) - len(query_tokens) - 6) * 0.35
+    return score
+
+
+def _rank_question_suggestions(query: str, candidates: list[str], limit: int) -> list[str]:
+    ranked: list[tuple[float, str]] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        rendered = str(candidate or "").strip()
+        if not rendered:
+            continue
+        key = rendered.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+
+        score = _score_suggestion_candidate(query, rendered)
+        if score < 0:
+            continue
+        ranked.append((score, rendered))
+
+    ranked.sort(key=lambda item: (-item[0], len(item[1]), item[1].lower()))
+    return [item[1] for item in ranked[: max(1, int(limit))]]
+
+
+def suggest_question_suggestions(query: str, user_id: str | None = None, limit: int = 5) -> list[str]:
+    del user_id
     q = str(query or "").strip()
-    if not q:
-        return []
-    # Only start suggesting after 3 typed words.
     words = [w for w in re.split(r"\s+", q) if w]
     if len(words) < 3:
         return []
+
     try:
         docs = _retrieve_relevant_docs(q)
     except Exception:
         return []
+    if not docs:
+        return []
 
-    suggestions: list[str] = []
-    seen: set[str] = set()
-    for doc in docs:
-        meta = doc.metadata or {}
-        title = str(meta.get("title") or "").strip()
-        if not title:
-            continue
-        key = title.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        suggestions.append(title)
-        if len(suggestions) >= max(1, int(limit)):
-            break
-    return suggestions
+    candidates = _build_doc_based_candidates(q, docs)
+    return _rank_question_suggestions(q, candidates, limit=limit)
+
+
+
+
+
 

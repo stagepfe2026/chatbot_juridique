@@ -10,6 +10,7 @@ from app.schemas import AuthUser, LoginResponse
 
 _users_repo = UsersRepository()
 _sessions_repo = SessionsRepository()
+_USER_LOGOUT_REASON = "USER_LOGOUT"
 
 
 def ensure_auth_indexes() -> None:
@@ -47,7 +48,10 @@ def login_user(*, email: str, password: str, response: Response) -> LoginRespons
 def logout_user(*, request: Request, response: Response) -> None:
     raw_token = request.cookies.get(settings.auth_session_cookie_name)
     if raw_token:
-        _sessions_repo.delete_session_by_token_hash(hash_session_token(raw_token))
+        _sessions_repo.close_session_by_token_hash(
+            hash_session_token(raw_token),
+            close_reason=_USER_LOGOUT_REASON,
+        )
 
     response.delete_cookie(key=settings.auth_session_cookie_name, path="/")
 

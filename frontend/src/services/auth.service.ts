@@ -1,4 +1,4 @@
-import { httpClient } from "./httpClient";
+﻿import { httpClient } from "./httpClient";
 import type { AuthUser, LoginRequest, LoginResponse } from "../models/auth.models";
 
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
@@ -11,6 +11,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function getCurrentUser(): Promise<AuthUser> {
-  const res = await httpClient.get<AuthUser>("/auth/me");
-  return res.data;
+  const res = await httpClient.get("/auth/me", { silentSnackbar: true } as any);
+  return res.data as AuthUser;
 }
+

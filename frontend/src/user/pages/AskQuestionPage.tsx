@@ -1,8 +1,13 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { SourceFile } from "../../models/chat.models";
 import type { ConversationMessage, ConversationSummary } from "../../models/conversation.models";
-import { askQuestion, getConversationMessages, listMyConversations } from "../../services/user.service";
+import {
+  askQuestion,
+  getConversationMessages,
+  getQuestionSuggestions,
+  listMyConversations,
+} from "../../services/user.service";
 
 type ChatMessage = {
   id: string;
@@ -13,15 +18,20 @@ type ChatMessage = {
   sourceFile?: SourceFile | null;
 };
 
-function Icon({
-  children,
-  size = 18,
-}: {
-  children: ReactNode;
-  size?: number;
-}) {
+function Icon({ children, size = 16 }: { children: ReactNode; size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="flex-shrink-0"
+      aria-hidden="true"
+    >
       {children}
     </svg>
   );
@@ -47,7 +57,6 @@ function formatDayLabel(dateString: string): string {
 
 function sanitizeAnswerText(text: string): string {
   let t = String(text ?? "");
-  // Defensive cleanup: never show internal chunk IDs in UI.
   t = t.replace(/\bchunk_\d+\b/gi, "");
   t = t.replace(/\s*:\s*(?=[)\]])/g, "");
   t = t.replace(/\s+et\s+(?=[)\],;\.])/gi, " ");
@@ -67,9 +76,11 @@ function fromConversationMessages(messages: ConversationMessage[]): ChatMessage[
   }));
 }
 
+function countTypedWords(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length;
+}
+
 export default function AskQuestionPage() {
-
-
   const [question, setQuestion] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -78,8 +89,15 @@ export default function AskQuestionPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyItems, setHistoryItems] = useState<ConversationSummary[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
-  const [hiddenHistoryIds, setHiddenHistoryIds] = useState<Record<string, boolean>>({});
-  const [customTitles, setCustomTitles] = useState<Record<string, string>>({});
+  const [hiddenHistoryIds] = useState<Record<string, boolean>>({});
+  const [customTitles] = useState<Record<string, string>>({});
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [hasSuggestionSearch, setHasSuggestionSearch] = useState(false);
+
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
   async function refreshHistory() {
     try {
       const items = await listMyConversations();
@@ -93,17 +111,70 @@ export default function AskQuestionPage() {
     void refreshHistory();
   }, []);
 
-const visibleHistory = useMemo(
-  () =>
-    [...historyItems]
-      .filter((item) => !hiddenHistoryIds[item.id])
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-  [historyItems, hiddenHistoryIds],
-);
+  // Auto-scroll on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    const trimmedQuestion = question.trim();
+    if (countTypedWords(trimmedQuestion) < 3) {
+      setSuggestions([]);
+      setSuggestionsOpen(false);
+      setSuggestionsLoading(false);
+      setHasSuggestionSearch(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSuggestionsLoading(true);
+
+    const timer = window.setTimeout(() => {
+      void getQuestionSuggestions(trimmedQuestion, 5)
+        .then((items) => {
+          if (cancelled) return;
+          setSuggestions(items);
+          setSuggestionsOpen(true);
+          setHasSuggestionSearch(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setSuggestions([]);
+          setSuggestionsOpen(true);
+          setHasSuggestionSearch(true);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setSuggestionsLoading(false);
+        });
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [question]);
+
+  const visibleHistory = useMemo(
+    () =>
+      [...historyItems]
+        .filter((item) => !hiddenHistoryIds[item.id])
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [historyItems, hiddenHistoryIds],
+  );
+
+  function resetSuggestions() {
+    setSuggestions([]);
+    setSuggestionsOpen(false);
+    setSuggestionsLoading(false);
+    setHasSuggestionSearch(false);
+  }
+
   function startNewQuestion() {
     setConversationId(undefined);
     setMessages([]);
     setQuestion("");
+    resetSuggestions();
     setError(null);
     setActiveHistoryId(null);
   }
@@ -113,30 +184,13 @@ const visibleHistory = useMemo(
       setError(null);
       setActiveHistoryId(item.id);
       setConversationId(item.id);
+      resetSuggestions();
       const data = await getConversationMessages(item.id);
       setMessages(fromConversationMessages(data));
-    } catch (e: unknown) {
-      const message =
-        typeof e === "object" && e !== null && "message" in e
-          ? String((e as { message?: unknown }).message ?? "Erreur de chargement de la conversation.")
-          : "Erreur de chargement de la conversation.";
-      setError(message);
+    } catch {
+      setError("Erreur de chargement de la conversation.");
     }
   }
-
-  function onEditHistory(item: ConversationSummary) {
-    const updated = window.prompt("Modifier le titre de la consultation", customTitles[item.id] ?? item.title);
-    if (!updated || !updated.trim()) return;
-    setCustomTitles((prev) => ({ ...prev, [item.id]: updated.trim() }));
-  }
-
-  function onDeleteHistory(item: ConversationSummary) {
-    setHiddenHistoryIds((prev) => ({ ...prev, [item.id]: true }));
-    if (activeHistoryId === item.id) {
-      startNewQuestion();
-    }
-  }
-
 
   async function onAsk() {
     const currentQuestion = question.trim();
@@ -144,7 +198,6 @@ const visibleHistory = useMemo(
 
     try {
       setLoading(true);
-      setError(null);
 
       const userMessage: ChatMessage = {
         id: `u-${Date.now()}`,
@@ -152,10 +205,13 @@ const visibleHistory = useMemo(
         text: currentQuestion,
         time: nowAsTime(),
       };
+
       setMessages((prev) => [...prev, userMessage]);
       setQuestion("");
+      resetSuggestions();
 
       const res = await askQuestion({ question: currentQuestion, conversationId });
+
       setConversationId(res.conversationId);
       setActiveHistoryId(res.conversationId);
 
@@ -167,164 +223,168 @@ const visibleHistory = useMemo(
         questionId: res.questionId,
         sourceFile: res.sourceFile ?? null,
       };
+
       setMessages((prev) => [...prev, assistantMessage]);
 
       await refreshHistory();
-    } catch (e: unknown) {
-      const message =
-        typeof e === "object" && e !== null && "message" in e
-          ? String((e as { message?: unknown }).message ?? "Erreur lors de la question.")
-          : "Erreur lors de la question.";
-      setError(message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="legal-chat-app">
-      <aside className={`legal-sidebar${sidebarOpen ? " open" : " closed"}`}>
-        <button className="new-question-btn" type="button" onClick={startNewQuestion}>
-          <span className="btn-icon">
-            <Icon size={15}>
-              <path d="M12 5v14" />
-              <path d="M5 12h14" />
-            </Icon>
-          </span>
-          Nouvelle Conversation
-        </button>
+    <div className="flex h-[calc(100vh-140px)] min-h-[calc(100vh-140px)] gap-4 ">
 
-        <div className="sidebar-section-title">Consultations recentes</div>
-        <div className="sidebar-history">
-          {visibleHistory.length === 0 && <div className="history-empty">Aucune conversation recente.</div>}
-          {visibleHistory.map((item) => (
-            <div
-              key={item.id}
-              className={`history-item${activeHistoryId === item.id ? " active" : ""}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => void openHistoryItem(item)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  void openHistoryItem(item);
-                }
-              }}
-            >
-              <span className="history-icon">
-                <Icon size={14}>
-                  <path d="M4 6h16v12H4z" />
-                  <path d="M8 10h8" />
-                </Icon>
-              </span>
-              <span className="history-content">
-                <span className="history-title">{customTitles[item.id] ?? item.title}</span>
-                <span className="history-time">{formatDayLabel(item.updatedAt)}</span>
-              </span>
-              <span className="history-actions" onClick={(e) => e.stopPropagation()}>
-                <button type="button" className="history-action-btn" onClick={() => onEditHistory(item)} aria-label="Modifier">
-                  <Icon size={14}>
-                    <path d="M4 20h4l10-10-4-4L4 16z" />
-                  </Icon>
-                </button>
-                <button type="button" className="history-action-btn" onClick={() => onDeleteHistory(item)} aria-label="Supprimer">
-                  <Icon size={14}>
-                    <path d="M4 7h16" />
-                    <path d="M9 7V4h6v3" />
-                    <path d="M7 7l1 13h8l1-13" />
-                  </Icon>
-                </button>
-              </span>
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(100vh-120px)] overflow-y-auto rounded-xl">
+          <button
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold hover:bg-red-50 hover:text-red-600"
+            onClick={startNewQuestion}
+          >
+            <Icon><path d="M12 5v14"/><path d="M5 12h14"/></Icon>
+            Nouvelle conversation
+          </button>
+
+          <div className="mt-4 text-[10px] uppercase tracking-wide text-slate-400">Conversations</div>
+
+          <div className="mt-3 space-y-2">
+            {visibleHistory.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-lg border px-3 py-2 text-sm cursor-pointer ${
+                  activeHistoryId === item.id
+                    ? "border-red-200 bg-red-50"
+                    : "border-transparent hover:bg-slate-50"
+                }`}
+                onClick={() => void openHistoryItem(item)}
+              >
+                <div className="truncate font-medium text-slate-800">{customTitles[item.id] ?? item.title}</div>
+                <div className="text-xs text-slate-400">{formatDayLabel(item.updatedAt)}</div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
+
+      {/* Chat */}
+      <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">Assistant Juridique IA</div>
+            <div className="text-xs text-slate-500">Posez vos questions juridiques</div>
+          </div>
+
+          <button
+            className="rounded-lg border border-slate-200 p-2 hover:bg-red-50 hover:text-red-600"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+          >
+            <Icon>
+              <path d="M4 7h16"/>
+              <path d="M4 12h16"/>
+              <path d="M4 17h16"/>
+            </Icon>
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5 scroll-smooth">
+          {messages.map((message) => (
+            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-2xl rounded-xl px-3 py-2 text-sm ${
+                message.role === "user" ? "bg-red-600 text-white shadow-sm" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-sm"
+              }`}>
+                <div className="whitespace-pre-wrap">{message.text}</div>
+                {message.sourceFile && (
+                  <a
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                    href={message.sourceFile.downloadUrl}
+                    download={message.sourceFile.filename}
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-600">
+                      <Icon size={14}>
+                        <path d="M8 3h6l4 4v14H6V3z" />
+                        <path d="M14 3v4h4" />
+                      </Icon>
+                    </span>
+                    <span className="truncate">{message.sourceFile.filename}</span>
+                  </a>
+                )}
+                <div className="mt-1 text-[10px] opacity-70">{message.time}</div>
+              </div>
             </div>
           ))}
+
+          {loading && <div className="text-sm text-slate-400">IA en train de répondre...</div>}
+          <div ref={bottomRef} />
         </div>
-      </aside>
 
-      <section className="legal-chat-main">
-   <div className="chat-inline-actions">
-  <button className="icon-btn" type="button" onClick={() => setSidebarOpen((prev) => !prev)} aria-label="Basculer menu">
-    <Icon>
-      <path d="M4 7h16" />
-      <path d="M4 12h16" />
-      <path d="M4 17h16" />
-    </Icon>
-  </button>
-</div>
-        <main className="legal-chat-area">
-          <section className="messages-panel">
-            <div className="messages-scroll">
-            {messages.length === 0 ? (
-              <div className="empty-chat-state">
-                <div className="empty-logo">
-                  <Icon size={28}>
-                    <path d="M8 3h6l4 4v14H6V3z" />
-                    <path d="M14 3v4h4" />
-                    <path d="M9 13h6" />
-                  </Icon>
-                </div>
-                <h1>Assistant Juridique IA</h1>
-                <p>Posez vos questions juridiques basees sur notre base documentaire</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <article key={message.id} className={`message-row ${message.role}`}>
-                  <div className={`message-avatar ${message.role}`}>{message.role === "user" ? "U" : "IA"}</div>
-                  <div className={`message-bubble ${message.role}`}>
-                    <p>{message.text}</p>
-                    {message.sourceFile && (
-                      <a className="chat-file-card" href={message.sourceFile.downloadUrl} download={message.sourceFile.filename}>
-                        <span className="chat-file-icon">
-                          <Icon size={14}>
-                            <path d="M8 3h6l4 4v14H6V3z" />
-                            <path d="M14 3v4h4" />
-                          </Icon>
-                        </span>
-                        <span className="chat-file-name">{message.sourceFile.filename}</span>
-                      </a>
-                    )}
-                    <div className="message-time">{message.time}</div>
-                  </div>
-                </article>
-              ))
-            )}
-
-            {loading && (
-              <article className="message-row assistant">
-                <div className="message-avatar assistant">IA</div>
-                <div className="message-bubble assistant typing-bubble">
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                </div>
-              </article>
-            )}
-            </div>
-
-            <section className="composer-panel">
-            <div className="composer-shell">
-             
-              <textarea id="question-input"
-                className="composer-input"
+        {/* Input */}
+        <div className="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
+          <div className="flex items-end gap-2">
+            <div className="relative flex-1">
+              <textarea
+                className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-red-300"
+                rows={2}
+                placeholder="Posez votre question..."
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
+                onFocus={() => {
+                  if (countTypedWords(question) >= 3) {
+                    setSuggestionsOpen(true);
+                  }
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => setSuggestionsOpen(false), 120);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     void onAsk();
                   }
                 }}
-                placeholder="Posez votre question juridique..."
-                rows={2}
               />
-              <button className="send-btn" type="button" onClick={() => void onAsk()} disabled={loading || !question.trim()}>
-                <Icon>
-                  <path d="m22 2-10 10" />
-                  <path d="m22 2-7 20-3-9-9-3z" />
-                </Icon>
-              </button>
-            </div>\n            </section>
-          </section>
-        </main>
+
+              {suggestionsOpen && (
+                <div className="absolute inset-x-0 bottom-[calc(100%+10px)] z-30 grid gap-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)]" role="listbox" aria-label="Suggestions automatiques">
+                  {suggestionsLoading ? (
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">Recherche de suggestions...</div>
+                  ) : suggestions.length > 0 ? (
+                    suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        className="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold text-slate-900 transition hover:-translate-y-px hover:bg-red-50 hover:text-red-700"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setQuestion(suggestion);
+                          setSuggestionsOpen(false);
+                        }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))
+                  ) : hasSuggestionSearch ? (
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">Aucune suggestion disponible pour le moment.</div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => void onAsk()}
+              disabled={!question.trim() || loading}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              <Icon>
+                <path d="m22 2-10 10"/>
+                <path d="m22 2-7 20-3-9-9-3z"/>
+              </Icon>
+            </button>
+          </div>
+        </div>
+
       </section>
     </div>
   );

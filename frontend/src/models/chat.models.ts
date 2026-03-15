@@ -1,4 +1,4 @@
-export interface AskQuestionRequest {
+﻿export interface AskQuestionRequest {
   conversationId?: string;
   question: string;
 }
@@ -22,3 +22,6 @@ export interface AskQuestionResponse {
   sources?: SourceItem[];
   sourceFile?: SourceFile | null;
 }
+
+export type QuestionSuggestion = string;
+

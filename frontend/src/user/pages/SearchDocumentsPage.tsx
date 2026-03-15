@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { DocumentSearchResult } from "../../models/document.models";
 import { searchDocuments, setDocumentFavorite } from "../../services/userDocuments.service";
 
 function Icon({ children }: { children: ReactNode }) {
   return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       {children}
     </svg>
   );
@@ -17,9 +17,9 @@ function highlightText(text: string, terms: string[]) {
   const regex = new RegExp(`(${escaped.join("|")})`, "gi");
   const parts = text.split(regex);
   return parts.map((part, index) => {
-    const isMatch = terms.some((term) => part.toLowerCase() == term.toLowerCase());
+    const isMatch = terms.some((term) => part.toLowerCase() === term.toLowerCase());
     return isMatch ? (
-      <mark key={`${part}-${index}`} className="search-highlight">
+      <mark key={`${part}-${index}`} className="rounded bg-amber-200 px-1 text-slate-900">
         {part}
       </mark>
     ) : (
@@ -62,7 +62,6 @@ export default function SearchDocumentsPage() {
       setError(null);
       return;
     }
-
     try {
       setLoading(true);
       setError(null);
@@ -70,7 +69,7 @@ export default function SearchDocumentsPage() {
       setResults(data);
     } catch (e: unknown) {
       const message =
-        typeof e == "object" && e != null && "message" in e
+        typeof e === "object" && e != null && "message" in e
           ? String((e as { message?: unknown }).message ?? "Erreur lors de la recherche.")
           : "Erreur lors de la recherche.";
       setError(message);
@@ -89,7 +88,7 @@ export default function SearchDocumentsPage() {
       setResults((prev) => prev.map((doc) => (doc.id === item.id ? { ...doc, isFavored: res.isFavored } : doc)));
       window.dispatchEvent(new Event("favorites-changed"));
     } catch {
-      setError("Impossible de mettre a jour les favoris.");
+      setError("Impossible de mettre à jour les favoris.");
     } finally {
       setFavoriteBusy((prev) => ({ ...prev, [item.id]: false }));
     }
@@ -97,13 +96,11 @@ export default function SearchDocumentsPage() {
 
   const sortedResults = useMemo(() => {
     const items = [...results];
-
     if (sortField === "title") {
       items.sort((a, b) => a.title.localeCompare(b.title, "fr", { sensitivity: "base" }));
       if (sortDir === "desc") items.reverse();
       return items;
     }
-
     items.sort((a, b) => sortTime(a) - sortTime(b));
     if (sortDir === "desc") items.reverse();
     return items;
@@ -129,26 +126,34 @@ export default function SearchDocumentsPage() {
     setSortDir("desc");
   }
 
+  const filterBtn = (active: boolean) =>
+    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+      active ? "border-red-600 bg-red-600 text-white shadow-[0_6px_12px_rgba(239,68,68,0.15)]" : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+    }`;
+
   return (
-    <div className="juris-search-page">
-      <section className="juris-search-panel">
-        <div className="juris-search-input">
-          <Icon>
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-4.2-4.2" />
-          </Icon>
-          <form onSubmit={onSearch}>
+    <div className="mx-auto max-w-8xl space-y-6 ">
+      <section className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-sm backdrop-blur">
+        <form onSubmit={onSearch} className="rounded-lg border border-slate-200 bg-slate-50/70 p-2 shadow-inner">
+          <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm">
+            <div className="text-slate-400">
+              <Icon>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4.2-4.2" />
+              </Icon>
+            </div>
             <input
+              className="w-full border-0 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher des documents juridiques..."
             />
-          </form>
-        </div>
+          </div>
+        </form>
 
-        <div className="juris-search-filters">
-          <span className="juris-filter-label">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
             <Icon>
               <path d="M4 6h16" />
               <path d="M6 12h12" />
@@ -156,47 +161,33 @@ export default function SearchDocumentsPage() {
             </Icon>
             Trier par:
           </span>
-
-          <button
-            type="button"
-            className={`juris-filter-btn${sortField === "date" ? " active" : ""}`}
-            onClick={() => toggleSort("date")}
-          >
+          <button type="button" className={filterBtn(sortField === "date")} onClick={() => toggleSort("date")}>
             <Icon>
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4" />
               <path d="M8 2v4" />
               <path d="M3 10h18" />
             </Icon>
-            Date
-            {sortField === "date" && <span className="juris-sort-dir">{sortDir === "asc" ? "Asc" : "Desc"}</span>}
+            Date {sortField === "date" && <span className="ml-1 rounded-full bg-white/20 px-1 py-0.5 text-[10px]">{sortDir === "asc" ? "Asc" : "Desc"}</span>}
           </button>
-
-          <button
-            type="button"
-            className={`juris-filter-btn${sortField === "title" ? " active" : ""}`}
-            onClick={() => toggleSort("title")}
-          >
+          <button type="button" className={filterBtn(sortField === "title")} onClick={() => toggleSort("title")}>
             <Icon>
               <path d="M4 6h8" />
               <path d="M4 12h16" />
               <path d="M4 18h12" />
             </Icon>
-            Titre
-            {sortField === "title" && <span className="juris-sort-dir">{sortDir === "asc" ? "A-Z" : "Z-A"}</span>}
+            Titre {sortField === "title" && <span className="ml-1 rounded-full bg-white/20 px-1 py-0.5 text-[10px]">{sortDir === "asc" ? "A-Z" : "Z-A"}</span>}
           </button>
         </div>
       </section>
 
-      {error && <div className="message-error">{error}</div>}
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</div>}
 
-      <section className="juris-search-body">
-        <div className="juris-search-list">
-          {loading && <div className="empty-state">Recherche en cours...</div>}
-          {!loading && sortedResults.length === 0 && query.trim() && (
-            <div className="empty-state">Aucun document trouve. Essayez un autre terme.</div>
-          )}
-          {!query.trim() && !loading && <div className="empty-state">Lancez une recherche pour afficher les documents.</div>}
+      <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-3">
+          {loading && <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-xs font-semibold text-slate-500">Recherche en cours...</div>}
+          {!loading && sortedResults.length === 0 && query.trim() && <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-xs font-semibold text-slate-500">Aucun document trouvé.</div>}
+          {!query.trim() && !loading && <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-xs font-semibold text-slate-500">Lancez une recherche pour afficher les documents.</div>}
 
           {sortedResults.map((doc) => {
             const isSelected = doc.id === selectedId;
@@ -205,67 +196,68 @@ export default function SearchDocumentsPage() {
               <button
                 key={doc.id}
                 type="button"
-                className={`juris-doc-card${isSelected ? " selected" : ""}`}
+                className={`group grid gap-3 rounded-lg border bg-white/85 p-4 text-left shadow-sm transition duration-150 ${
+                  isSelected ? "border-red-300 shadow-[0_8px_16px_rgba(239,68,68,0.12)]" : "border-white/80 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-[0_6px_12px_rgba(239,68,68,0.08)]"
+                }`}
                 onClick={() => setSelectedId(doc.id)}
               >
-                <div className="juris-doc-card-main">
-                  <div className="juris-doc-title">{highlightText(doc.title, terms)}</div>
-                  <div className="juris-doc-subtitle">{highlightText(doc.description || doc.excerpt, terms)}</div>
-                  <div className="juris-doc-meta">
-                    <span className="juris-doc-tag">{doc.category.replace(/_/g, " ")}</span>
-                    {dateValue && (
-                      <span className="juris-doc-date">
-                        <Icon>
-                          <rect x="3" y="4" width="18" height="18" rx="2" />
-                          <path d="M16 2v4" />
-                          <path d="M8 2v4" />
-                          <path d="M3 10h18" />
-                        </Icon>
-                        {formatDate(dateValue)}
-                      </span>
-                    )}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-lg font-bold tracking-tight text-slate-900">{highlightText(doc.title, terms)}</div>
+                    <div className="mt-1 text-xs font-medium text-slate-500">{highlightText(doc.description || doc.excerpt, terms)}</div>
                   </div>
+                  <button
+                    type="button"
+                    className={`shrink-0 rounded-full p-1.5 transition ${doc.isFavored ? "text-amber-500" : "text-slate-300 hover:text-amber-500"}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void onToggleFavorite(doc);
+                    }}
+                    disabled={favoriteBusy[doc.id]}
+                  >
+                    <Icon>
+                      <path d="m12 3 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z" />
+                    </Icon>
+                  </button>
                 </div>
-
-                <span
-                  className={`juris-doc-star${doc.isFavored ? " active" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void onToggleFavorite(doc);
-                  }}
-                >
-                  <Icon>
-                    <path d="m12 3 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z" />
-                  </Icon>
-                </span>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600">{doc.category.replace(/_/g, " ")}</span>
+                  {dateValue && (
+                    <span className="inline-flex items-center gap-1">
+                      <Icon>
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <path d="M16 2v4" />
+                        <path d="M8 2v4" />
+                        <path d="M3 10h18" />
+                      </Icon>
+                      {formatDate(dateValue)}
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
         </div>
 
-        <div className="juris-search-detail">
+        <div className="rounded-2xl border border-white/80 bg-white/85 p-4 shadow-sm">
           {selectedDoc ? (
-            <div className="juris-detail-card">
-              <div className="juris-detail-header">
+            <div>
+              <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="juris-detail-title">{selectedDoc.title}</div>
-                  <div className="juris-detail-subtitle">{selectedDoc.description || ""}</div>
+                  <div className="text-xl font-bold tracking-tight text-slate-900">{selectedDoc.title}</div>
+                  <div className="mt-1 text-xs font-medium text-slate-500">{selectedDoc.description || ""}</div>
                 </div>
-                <button
-                  type="button"
-                  className={`juris-doc-star${selectedDoc.isFavored ? " active" : ""}`}
-                  onClick={() => void onToggleFavorite(selectedDoc)}
-                >
+                <button type="button" className={`rounded-full p-1.5 transition ${selectedDoc.isFavored ? "text-amber-500" : "text-slate-300 hover:text-amber-500"}`} onClick={() => void onToggleFavorite(selectedDoc)}>
                   <Icon>
                     <path d="m12 3 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z" />
                   </Icon>
                 </button>
               </div>
 
-              <div className="juris-doc-meta">
-                <span className="juris-doc-tag">{selectedDoc.category.replace(/_/g, " ")}</span>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600">{selectedDoc.category.replace(/_/g, " ")}</span>
                 {(selectedDoc.realizedAt || selectedDoc.createdAt) && (
-                  <span className="juris-doc-date">
+                  <span className="inline-flex items-center gap-1">
                     <Icon>
                       <rect x="3" y="4" width="18" height="18" rx="2" />
                       <path d="M16 2v4" />
@@ -277,25 +269,34 @@ export default function SearchDocumentsPage() {
                 )}
               </div>
 
-              <div className="juris-detail-content">
-                <div className="juris-detail-label">Contenu:</div>
-                <p>{selectedDoc.excerpt || selectedDoc.description || ""}</p>
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="text-sm font-bold text-slate-900">Contenu</div>
+                <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-600">{selectedDoc.excerpt || selectedDoc.description || ""}</p>
               </div>
 
-              <a className="juris-detail-cta" href={selectedDoc.downloadUrl} target="_blank" rel="noreferrer">
+              <a
+                className="mt-4 inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-[0_8px_16px_rgba(239,68,68,0.15)] transition hover:-translate-y-px"
+                href={selectedDoc.downloadUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Consulter le document complet
               </a>
             </div>
           ) : (
-            <div className="juris-detail-empty">
-              <Icon>
-                <path d="M6 3h9l5 5v13H6z" />
-                <path d="M15 3v5h5" />
-                <path d="M9 13h6" />
-                <path d="M9 17h6" />
-              </Icon>
-              <div className="juris-detail-title">Selectionnez un document</div>
-              <div className="juris-detail-subtitle">Cliquez sur un document pour consulter son contenu</div>
+            <div className="grid min-h-[200px] place-items-center text-center text-slate-500">
+              <div>
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                  <Icon>
+                    <path d="M6 3h9l5 5v13H6z" />
+                    <path d="M15 3v5h5" />
+                    <path d="M9 13h6" />
+                    <path d="M9 17h6" />
+                  </Icon>
+                </div>
+                <div className="mt-2 text-sm font-bold text-slate-900">Sélectionnez un document</div>
+                <div className="mt-1 text-xs font-medium">Cliquez sur un document pour consulter son contenu</div>
+              </div>
             </div>
           )}
         </div>

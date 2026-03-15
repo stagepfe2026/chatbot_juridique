@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import Snackbar from "../../../components/Snackbar";
 import { deleteDocument, listDocuments } from "../../../services/admin.service";
@@ -13,8 +13,8 @@ const categoryLabel: Record<DocumentCategory, string> = {
 
 const statusLabel: Record<DocumentStatus, string> = {
   PROCESSING: "En cours",
-  INDEXED: "Indexe",
-  FAILED: "Echoue",
+  INDEXED: "Indexé",
+  FAILED: "Échoué",
 };
 
 function formatDate(value?: string | null): string {
@@ -25,35 +25,26 @@ function formatDate(value?: string | null): string {
 }
 
 function getFilename(filePath: string): string {
-  const parts = filePath.split(/[/\\]/g);
+  const parts = filePath.split(/[\\/]/g);
   return parts[parts.length - 1] || filePath;
 }
 
-function badgeClass(status: DocumentStatus): string {
-  if (status === "INDEXED") return "jb-badge jb-badge--indexed";
-  if (status === "FAILED") return "jb-badge jb-badge--failed";
-  return "jb-badge jb-badge--processing";
+function badgeClasses(status: DocumentStatus): string {
+  if (status === "INDEXED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "FAILED") return "border-red-200 bg-red-50 text-red-700";
+  return "border-sky-200 bg-sky-50 text-sky-700";
 }
 
 export default function DocumentsListPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<DocumentStatus | "">("");
   const [category, setCategory] = useState<DocumentCategory | "">("");
-
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDoc, setConfirmDoc] = useState<Document | null>(null);
-
-  const [snack, setSnack] = useState<{ open: boolean; message: string; variant: "success" | "error" | "info" }>(
-    {
-      open: false,
-      message: "",
-      variant: "info",
-    }
-  );
+  const [snack, setSnack] = useState<{ open: boolean; message: string; variant: "success" | "error" | "info" }>({ open: false, message: "", variant: "info" });
 
   function showSnack(message: string, variant: "success" | "error" | "info") {
     setSnack({ open: true, message, variant });
@@ -105,7 +96,7 @@ export default function DocumentsListPage() {
       setDeletingId(doc.id);
       await deleteDocument(doc.id);
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-      showSnack("Document supprime definitivement.", "success");
+      showSnack("Document supprimé définitivement.", "success");
     } catch (e: unknown) {
       const message =
         typeof e === "object" && e !== null && "message" in e
@@ -119,119 +110,99 @@ export default function DocumentsListPage() {
   }
 
   return (
-    <div className="jb-page">
-      <section className="jb-hero jb-hero--docs">
-        <div className="jb-hero-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          </svg>
-        </div>
-        <div className="jb-hero-main">
+    <div className="grid gap-5">
+      {/* Header & stats */}
+      <section className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between rounded-xl border border-white/60 bg-white/85 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600 shadow-inner">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+          </div>
           <div>
-            <h1 className="jb-hero-title">Documents indexes</h1>
-            <p className="jb-hero-subtitle">Gerez tous vos documents juridiques</p>
+            <h1 className="text-xl font-bold text-slate-900">Documents indexés</h1>
+            <p className="mt-0.5 text-sm text-slate-500">Gérez vos documents juridiques</p>
           </div>
-          <div className="jb-stats">
-            <div className="jb-stat">
-              <div className="jb-stat-label">Total</div>
-              <div className="jb-stat-value">{stats.total}</div>
-            </div>
-            <div className="jb-stat jb-stat--ok">
-              <div className="jb-stat-label">Indexes</div>
-              <div className="jb-stat-value">{stats.indexed}</div>
-            </div>
-            <div className="jb-stat jb-stat--bad">
-              <div className="jb-stat-label">Echoues</div>
-              <div className="jb-stat-value">{stats.failed}</div>
-            </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3 mt-2 xl:mt-0">
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Total</div>
+            <div className="mt-1 text-lg font-bold text-slate-900">{stats.total}</div>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-center">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">Indexés</div>
+            <div className="mt-1 text-lg font-bold text-emerald-700">{stats.indexed}</div>
+          </div>
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-red-600">Échoués</div>
+            <div className="mt-1 text-lg font-bold text-red-700">{stats.failed}</div>
           </div>
         </div>
       </section>
 
-      <section className="jb-card">
-        <div className="jb-card-title">
-          <span className="jb-card-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10 10a4 4 0 1 0 0.001 0z" />
-              <path d="M21 21l-4.3-4.3" />
-            </svg>
-          </span>
-          Filtres et recherche
-        </div>
-
-        <div className="jb-filters">
-          <input
-            className="jb-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un document..."
-          />
-
-          <select className="jb-select" value={status} onChange={(e) => setStatus(e.target.value as DocumentStatus | "")}>
-            <option value="">Tous les status</option>
-            <option value="PROCESSING">En cours</option>
-            <option value="INDEXED">Indexe</option>
-            <option value="FAILED">Echoue</option>
-          </select>
-
-          <select className="jb-select" value={category} onChange={(e) => setCategory(e.target.value as DocumentCategory | "")}>
-            <option value="">Toutes les categories</option>
-            {Object.entries(categoryLabel).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="jb-found">{filtered.length} documents trouves</div>
+      {/* Filters */}
+      <section className="grid gap-3 lg:grid-cols-3 rounded-xl border border-white/60 bg-white/85 p-4 shadow-sm">
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-300 focus:ring-2 focus:ring-red-100 outline-none"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher un document..."
+        />
+        <select
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-red-300 focus:ring-2 focus:ring-red-100 outline-none"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as DocumentStatus | "")}
+        >
+          <option value="">Tous les statuts</option>
+          <option value="PROCESSING">En cours</option>
+          <option value="INDEXED">Indexé</option>
+          <option value="FAILED">Échoué</option>
+        </select>
+        <select
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-red-300 focus:ring-2 focus:ring-red-100 outline-none"
+          value={category}
+          onChange={(e) => setCategory(e.target.value as DocumentCategory | "")}
+        >
+          <option value="">Toutes les catégories</option>
+          {Object.entries(categoryLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
       </section>
 
-      {loading && <div className="jb-card">Chargement des documents...</div>}
-      {error && <div className="jb-msg jb-msg--error">{error}</div>}
+      {/* Results count */}
+      <div className="text-sm font-medium text-slate-500">{filtered.length} document(s) trouvé(s)</div>
 
-      {!loading && !error && filtered.length === 0 && <div className="jb-empty">Aucun document a afficher pour le moment.</div>}
+      {/* Messages */}
+      {loading && <div className="rounded-xl border border-white/80 bg-white/85 px-4 py-4 text-sm text-slate-500 shadow-sm">Chargement des documents...</div>}
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
+      {!loading && !error && filtered.length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-sm font-medium text-slate-500">Aucun document à afficher pour le moment.</div>}
 
+      {/* Documents list */}
       {!loading && !error && filtered.length > 0 && (
-        <div className="jb-list">
+        <div className="grid gap-3">
           {filtered.map((doc) => (
-            <article className="jb-doc" key={doc.id}>
-              <div className="jb-doc-ico" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                </svg>
+            <article className="grid gap-3 rounded-xl border border-white/80 bg-white/85 p-4 shadow-sm lg:grid-cols-[56px_1fr_auto] lg:items-start" key={doc.id}>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
               </div>
-
-              <div className="jb-doc-main">
-                <div className="jb-doc-top">
-                  <div className="jb-doc-title">{doc.title}</div>
-                  <span className={badgeClass(doc.documentStatus)}>{statusLabel[doc.documentStatus]}</span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-lg font-bold text-slate-900">{doc.title}</div>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badgeClasses(doc.documentStatus)}`}>{statusLabel[doc.documentStatus]}</span>
                 </div>
-
-                <div className="jb-tags">
-                  <span className="jb-tag">{categoryLabel[doc.category] ?? doc.category}</span>
-                </div>
-
-                {doc.description?.trim() ? <p className="jb-doc-desc">{doc.description}</p> : null}
-
-                <div className="jb-meta">
-                  <span>Realise le {formatDate(doc.realizedAt)}</span>
-                  <span className="jb-dot">-</span>
-                  <span>Indexe le {formatDate(doc.indexedAt)}</span>
-                  <span className="jb-dot">-</span>
+                <div className="mt-2 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600">{categoryLabel[doc.category] ?? doc.category}</div>
+                {doc.description?.trim() && <p className="mt-2 text-sm text-slate-600">{doc.description}</p>}
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>Réalisé le {formatDate(doc.realizedAt)}</span>
+                  <span>Indexé le {formatDate(doc.indexedAt)}</span>
                   <span>{getFilename(doc.filePath)}</span>
                 </div>
               </div>
-
               <button
                 type="button"
-                className="jb-trash"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-60"
                 onClick={() => setConfirmDoc(doc)}
                 disabled={deletingId === doc.id}
                 aria-label={`Supprimer ${doc.title}`}
               >
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 6h18" />
                   <path d="M8 6V4h8v2" />
                   <path d="M6 6l1 16h10l1-16" />
@@ -244,24 +215,14 @@ export default function DocumentsListPage() {
 
       <ConfirmDialog
         open={!!confirmDoc}
-        title="Suppression definitive"
-        message={
-          confirmDoc
-            ? `Supprimer definitivement "${confirmDoc.title}" ? Cette action supprime le document de MongoDB et de Qdrant.`
-            : ""
-        }
+        title="Suppression définitive"
+        message={confirmDoc ? `Supprimer définitivement "${confirmDoc.title}" ? Cette action supprime le document de MongoDB et de Qdrant.` : ""}
         confirmText={deletingId ? "Suppression..." : "Supprimer"}
         cancelText="Annuler"
         onCancel={() => setConfirmDoc(null)}
         onConfirm={() => void confirmDelete()}
       />
-
-      <Snackbar
-        open={snack.open}
-        message={snack.message}
-        variant={snack.variant}
-        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
-      />
+      <Snackbar open={snack.open} message={snack.message} variant={snack.variant} onClose={() => setSnack((prev) => ({ ...prev, open: false }))} />
     </div>
   );
 }

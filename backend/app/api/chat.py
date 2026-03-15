@@ -5,8 +5,9 @@ from app.controllers.chat_controller import (
     create_question_with_user_controller,
     download_source_document_controller,
     get_question_sources_controller,
+    get_question_suggestions_controller,
 )
-from app.controllers.conversations_controller import list_user_conversations_controller,list_user_conversation_messages_controller
+from app.controllers.conversations_controller import list_user_conversations_controller, list_user_conversation_messages_controller
 from app.models import UserRole
 from app.schemas import AskQuestionRequest, AskQuestionResponse, AuthUser, ConversationMessageOut, ConversationSummaryOut, SourceItem
 
@@ -48,7 +49,12 @@ def list_conversation_messages(
 ):
     return list_user_conversation_messages_controller(current_user.id, conversation_id, limit=limit)
 
+
 @router.get("/suggestions", response_model=list[str])
-def get_suggestions(query: str, limit: int = 5):
-    return get_question_suggestions_controller(query, limit=limit)
+def get_suggestions(
+    query: str,
+    limit: int = 5,
+    current_user: AuthUser = Depends(get_current_user_from_request),
+):
+    return get_question_suggestions_controller(query, user_id=current_user.id, limit=limit)
 

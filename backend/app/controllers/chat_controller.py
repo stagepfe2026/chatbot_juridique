@@ -19,7 +19,6 @@ def download_source_document_controller(document_id: str):
 
 
 
-def get_question_suggestions_controller(query: str, limit: int = 5):
-    return list_question_suggestions(query, limit=limit)
-
+def get_question_suggestions_controller(query: str, user_id: str | None = None, limit: int = 5):
+    return list_question_suggestions(query, user_id=user_id, limit=limit)
 
