@@ -12,11 +12,15 @@ export interface Document {
   category: DocumentCategory;
   description: string;
   documentStatus: DocumentStatus;
+  realizedAt?: string | null;
   filePath: string;
   fileSize: number;
   fileType: string;
   createdAt: string;
-  deletedAt?: string;
+  deletedAt?: string | null;
+  indexedAt?: string | null;
+  chunksCount?: number | null;
+  indexError?: string | null;
   isFavored?: boolean;
 }
 
@@ -29,6 +33,7 @@ export interface DocumentSearchResult {
   isFavored: boolean;
   downloadUrl: string;
   createdAt?: string | null;
+  realizedAt?: string | null;
 }
 
 export interface DocumentFavoriteResponse {
@@ -40,6 +45,7 @@ export interface ImportDocumentForm {
   file: File | null;
   title: string;
   category: DocumentCategory | "";
+  realizedAt: string;
   description: string;
 }
 

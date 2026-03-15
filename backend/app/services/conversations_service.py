@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+﻿from fastapi import HTTPException, status
 
 from app.repositories import ChatQuestionsRepository, ConversationsRepository, MessagesRepository
 from app.schemas import ConversationMessageOut, ConversationOut, ConversationSummaryOut
@@ -18,6 +18,8 @@ def list_recent_conversations(limit: int = 200) -> list[ConversationOut]:
             askedAt=model.asked_at,
             answeredAt=model.answered_at,
             createdAt=model.created_at,
+            questionId=model.question_id,
+            sourceFile=model.source_file,
             userId=model.user_id,
         )
         for model in records
@@ -68,15 +70,31 @@ def list_recent_conversations_by_user(user_id: str, limit: int = 100) -> list[Co
 def list_conversation_messages_for_user(user_id: str, conversation_id: str, limit: int = 500) -> list[ConversationMessageOut]:
     if not _conversations_repo.can_access(conversation_id, user_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation introuvable.")
-
     models = _messages_repo.list_messages(conversation_id, limit=limit)
-    return [
-        ConversationMessageOut(
-            id=model.id or "",
-            conversationId=conversation_id,
-            role=model.role,
-            content=model.content,
-            createdAt=model.created_at,
+    items: list[ConversationMessageOut] = []
+    for model in models:
+        question_id = getattr(model, "question_id", None)
+        source_file = getattr(model, "source_file", None)
+        # Backward-compat: older message records did not store questionId/sourceFile.
+        if model.role == "assistant" and (not question_id or not source_file):
+            record = _chat_repo.find_question_record_by_conversation_and_answer(conversation_id, model.content)
+            if record:
+                if record.get("_id") is not None:
+                    question_id = str(record.get("_id"))
+                raw_sf = record.get("sourceFile")
+                if isinstance(raw_sf, dict):
+                    source_file = raw_sf
+
+        items.append(
+            ConversationMessageOut(
+                id=model.id or "",
+                conversationId=conversation_id,
+                role=model.role,
+                content=model.content,
+                createdAt=model.created_at,
+                questionId=question_id,
+                sourceFile=source_file,
+            )
         )
-        for model in models
-    ]
+    return items
+

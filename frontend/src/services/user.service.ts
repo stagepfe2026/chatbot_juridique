@@ -1,5 +1,5 @@
-import { httpClient } from "./httpClient";
-import type { AskQuestionRequest, AskQuestionResponse, SourceItem } from "../models/chat.models";
+﻿import { httpClient } from "./httpClient";
+import type { AskQuestionRequest, AskQuestionResponse, QuestionSuggestion, SourceItem } from "../models/chat.models";
 import type { ConversationMessage, ConversationSummary } from "../models/conversation.models";
 
 export async function askQuestion(payload: AskQuestionRequest): Promise<AskQuestionResponse> {
@@ -21,3 +21,9 @@ export async function getConversationMessages(conversationId: string): Promise<C
   const res = await httpClient.get<ConversationMessage[]>(`/chat/conversations/${conversationId}/messages`);
   return Array.isArray(res.data) ? res.data : [];
 }
+
+export async function getQuestionSuggestions(query: string, limit = 5): Promise<QuestionSuggestion[]> {
+  const res = await httpClient.get<QuestionSuggestion[]>("/chat/suggestions", { params: { query, limit } });
+  return Array.isArray(res.data) ? res.data : [];
+}
+

@@ -11,6 +11,7 @@ export async function importDocument(form: ImportDocumentForm): Promise<ImportDo
   data.append("file", form.file);
   data.append("title", form.title);
   data.append("category", form.category);
+  data.append("realizedAt", form.realizedAt);
   data.append("description", form.description);
 
   const res = await httpClient.post<ImportDocumentResponse>("/admin/documents/import", data, {
@@ -18,6 +19,10 @@ export async function importDocument(form: ImportDocumentForm): Promise<ImportDo
   });
 
   return res.data;
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  await httpClient.delete(`/admin/documents/${documentId}`);
 }
 
 export async function listDocuments(): Promise<Document[]> {

@@ -1,4 +1,4 @@
-from bson import ObjectId
+﻿from bson import ObjectId
 
 from app.database.connections import get_messages_collection
 from app.models.conversation_memory import MessageModel
@@ -10,14 +10,9 @@ class MessagesRepository:
         if not object_id:
             raise ValueError("conversationId invalide")
 
-        inserted = get_messages_collection().insert_one(
-            {
-                "conversationId": object_id,
-                "role": model.role,
-                "content": model.content,
-                "createdAt": model.created_at,
-            }
-        )
+        doc = model.to_mongo_insert()
+        doc["conversationId"] = object_id
+        inserted = get_messages_collection().insert_one(doc)
         return str(inserted.inserted_id)
 
     def list_last_messages(self, conversation_id: str, limit: int) -> list[MessageModel]:
@@ -31,16 +26,7 @@ class MessagesRepository:
             .sort("createdAt", -1)
             .limit(limit)
         )
-        items = [
-            MessageModel(
-                id=str(raw.get("_id")) if raw.get("_id") is not None else None,
-                conversation_id=str(raw.get("conversationId")),
-                role=str(raw.get("role", "")),
-                content=str(raw.get("content", "")),
-                created_at=raw.get("createdAt"),
-            )
-            for raw in cursor
-        ]
+        items = [MessageModel.from_mongo(raw) for raw in cursor]
         # Return chronologically as requested.
         return list(reversed(items))
 
@@ -55,16 +41,7 @@ class MessagesRepository:
             .sort("createdAt", 1)
             .limit(max(1, limit))
         )
-        return [
-            MessageModel(
-                id=str(raw.get("_id")) if raw.get("_id") is not None else None,
-                conversation_id=str(raw.get("conversationId")),
-                role=str(raw.get("role", "")),
-                content=str(raw.get("content", "")),
-                created_at=raw.get("createdAt"),
-            )
-            for raw in cursor
-        ]
+        return [MessageModel.from_mongo(raw) for raw in cursor]
 
     def count_messages(self, conversation_id: str) -> int:
         object_id = self._parse_conversation_id(conversation_id)
@@ -82,3 +59,4 @@ class MessagesRepository:
             return ObjectId(conversation_id)
         except Exception:
             return None
+

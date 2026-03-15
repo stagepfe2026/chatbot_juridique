@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from bson import ObjectId
@@ -22,6 +23,9 @@ class DocumentsRepository:
         )
         return [DocumentModel.from_mongo(item) for item in cursor]
 
+
+    def count_favorite_documents(self) -> int:
+        return int(get_documents_collection().count_documents({"deletedAt": None, "isFavored": True}))
     def create_document(self, model: DocumentModel) -> str:
         inserted = get_documents_collection().insert_one(model.to_mongo_insert())
         return str(inserted.inserted_id)
@@ -43,6 +47,7 @@ class DocumentsRepository:
         file_size: int,
         file_type: str,
         description: str,
+        realized_at: datetime | None,
     ) -> None:
         get_documents_collection().update_one(
             {"_id": self._parse_document_id(document_id), "deletedAt": None},
@@ -52,6 +57,7 @@ class DocumentsRepository:
                     "fileSize": file_size,
                     "fileType": file_type,
                     "description": description.strip(),
+                    "realizedAt": realized_at,
                     "documentStatus": DocumentStatus.PROCESSING.value,
                     "indexError": None,
                 }
@@ -152,6 +158,17 @@ class DocumentsRepository:
         query = {"deletedAt": None, "$and": conditions} if conditions else {"deletedAt": None}
         cursor = get_documents_collection().find(query).sort("createdAt", -1).limit(limit)
         return [DocumentModel.from_mongo(item) for item in cursor]
+
+    def hard_delete_document(self, document_id: str) -> dict[str, Any]:
+        oid = self._parse_document_id(document_id)
+        raw = get_documents_collection().find_one({"_id": oid})
+        if not raw:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
+        get_documents_collection().delete_one({"_id": oid})
+        return raw
+
+    def get_document_raw_by_id(self, document_id: str) -> dict[str, Any] | None:
+        return get_documents_collection().find_one({"_id": self._parse_document_id(document_id)})
 
     @staticmethod
     def _parse_document_id(document_id: str) -> ObjectId:

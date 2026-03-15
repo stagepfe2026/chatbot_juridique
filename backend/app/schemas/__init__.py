@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -23,6 +23,7 @@ class DocumentOut(BaseModel):
     category: DocumentCategory
     description: str = ""
     documentStatus: DocumentStatus
+    realizedAt: datetime | None = None
     filePath: str
     fileSize: int
     fileType: str
@@ -43,6 +44,7 @@ class DocumentSearchResult(BaseModel):
     isFavored: bool = False
     downloadUrl: str = ""
     createdAt: datetime | None = None
+    realizedAt: datetime | None = None
 
 
 class DocumentFavoriteUpdate(BaseModel):
@@ -52,6 +54,10 @@ class DocumentFavoriteUpdate(BaseModel):
 class DocumentFavoriteResponse(BaseModel):
     documentId: str
     isFavored: bool
+
+
+class FavoritesCountOut(BaseModel):
+    count: int
 
 
 class ImportDocumentResponse(BaseModel):
@@ -121,8 +127,8 @@ class ConversationMessageOut(BaseModel):
     role: str
     content: str
     createdAt: datetime
-
-
+    questionId: str | None = None
+    sourceFile: SourceFile | None = None
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     FINANCE_USER = "FINANCE_USER"
@@ -144,3 +150,5 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     user: AuthUser
     sessionExpiresAt: datetime
+
+

@@ -1,4 +1,4 @@
-from langchain_core.prompts import ChatPromptTemplate
+﻿from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 import re
 
@@ -27,11 +27,11 @@ def ensure_conversation(conversation_id: str | None, user_id: str | None = None)
     return _conversations_repo.ensure_exists(conversation_id, user_id=user_id)
 
 
-def save_message(conversation_id: str, role: str, content: str) -> str:
+def save_message(conversation_id: str, role: str, content: str, *, question_id: str | None = None, source_file: dict | None = None) -> str:
     if role not in {"user", "assistant"}:
         raise ValueError("role invalide")
 
-    model = MessageModel.new(conversation_id=conversation_id, role=role, content=content)
+    model = MessageModel.new(conversation_id=conversation_id, role=role, content=content, question_id=question_id, source_file=source_file)
     message_id = _messages_repo.create_message(model)
     _conversations_repo.touch(conversation_id)
     return message_id
@@ -125,3 +125,4 @@ def update_conversation_summary(conversation_id: str) -> str:
 def ensure_conversation_memory_indexes() -> None:
     _conversations_repo.ensure_indexes()
     _messages_repo.ensure_indexes()
+

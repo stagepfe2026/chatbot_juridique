@@ -11,6 +11,7 @@ class DocumentModel:
     category: str
     description: str
     document_status: str
+    realized_at: datetime | None
     file_path: str
     file_size: int
     file_type: str
@@ -30,6 +31,7 @@ class DocumentModel:
         title: str,
         category: str,
         description: str,
+        realized_at: datetime | None = None,
         file_path: str,
         file_size: int,
         file_type: str,
@@ -39,6 +41,7 @@ class DocumentModel:
             category=category,
             description=description.strip(),
             document_status=DocumentStatus.PROCESSING.value,
+            realized_at=realized_at,
             file_path=file_path,
             file_size=file_size,
             file_type=file_type,
@@ -54,6 +57,7 @@ class DocumentModel:
             category=str(raw.get("category", "")),
             description=str(raw.get("description", "")),
             document_status=str(raw.get("documentStatus", DocumentStatus.PROCESSING.value)),
+            realized_at=raw.get("realizedAt"),
             file_path=str(raw.get("filePath", "")),
             file_size=int(raw.get("fileSize", 0)),
             file_type=str(raw.get("fileType", "application/octet-stream")),
@@ -72,6 +76,7 @@ class DocumentModel:
             "category": self.category,
             "description": self.description,
             "documentStatus": self.document_status,
+            "realizedAt": self.realized_at,
             "filePath": self.file_path,
             "fileSize": self.file_size,
             "fileType": self.file_type,
@@ -90,6 +95,7 @@ class DocumentModel:
             category=DocumentCategory(self.category),
             description=self.description,
             documentStatus=DocumentStatus(self.document_status),
+            realizedAt=self.realized_at,
             filePath=self.file_path,
             fileSize=self.file_size,
             fileType=self.file_type,

@@ -1,4 +1,4 @@
-UPDATE_SUMMARY_PROMPT_FR = (
+﻿UPDATE_SUMMARY_PROMPT_FR = (
     "Tu maintiens un resume de conversation pour un chatbot juridique.\n"
     "Mets a jour le resume en utilisant le previous_summary et les recent_messages.\n"
     "Contraintes de sortie:\n"
@@ -24,7 +24,8 @@ FINAL_ANSWER_PROMPT_FR = (
     "Conserve strictement les valeurs numeriques (fractions, taux, durees) presentes dans rag_context.\n"
     "Ne jamais remplacer une valeur numerique explicite par une generalisation.\n"
     "Ne pas ecrire 'source 1', 'source 2', etc. Cite plutot explicitement les articles (ex: article 67).\n"
-    "Inclure les references de source (document, article, section/page quand disponible) dans la reponse.\n"
+    "Inclure les references de source (document, article, page quand disponible) dans la reponse.\n"
+"Ne jamais mentionner des identifiants techniques comme \"chunk_9\", \"chunk_14\", ou des IDs internes.\n"
     "Ne pas inventer de faits.\n\n"
     "summary:\n{summary}\n\n"
     "last_messages:\n{last_messages}\n\n"
@@ -48,3 +49,4 @@ LEGAL_ANSWER_REVIEW_PROMPT_FR = (
 )
 
 NO_INFO_ANSWER_FR = "Je ne trouve pas cette information dans les documents fournis."
+

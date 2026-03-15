@@ -21,3 +21,8 @@ export async function setDocumentFavorite(documentId: string, isFavored: boolean
   });
   return res.data;
 }
+
+export async function getFavoriteDocumentsCount(): Promise<number> {
+  const res = await httpClient.get<{ count: number }>("/user/documents/favorites/count");
+  return typeof res.data?.count === "number" ? res.data.count : 0;
+}
