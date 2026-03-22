@@ -8,6 +8,18 @@ export interface AuthUser {
   role: UserRole;
 }
 
+export interface UpdateProfileRequest {
+  nom: string;
+  prenom: string;
+  email: string;
+}
+
+export interface UpdatePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

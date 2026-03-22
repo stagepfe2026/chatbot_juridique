@@ -1,6 +1,6 @@
-﻿import { httpClient } from "./httpClient";
+import { httpClient } from "./httpClient";
 import type { AskQuestionRequest, AskQuestionResponse, QuestionSuggestion, SourceItem } from "../models/chat.models";
-import type { ConversationMessage, ConversationSummary } from "../models/conversation.models";
+import type { ConversationArchiveState, ConversationMessage, ConversationSummary } from "../models/conversation.models";
 
 export async function askQuestion(payload: AskQuestionRequest): Promise<AskQuestionResponse> {
   const res = await httpClient.post<AskQuestionResponse>("/chat/questions", payload);
@@ -22,8 +22,17 @@ export async function getConversationMessages(conversationId: string): Promise<C
   return Array.isArray(res.data) ? res.data : [];
 }
 
+export async function archiveConversation(conversationId: string): Promise<ConversationArchiveState> {
+  const res = await httpClient.post<ConversationArchiveState>(`/chat/conversations/${conversationId}/archive`);
+  return res.data;
+}
+
+export async function restoreConversation(conversationId: string): Promise<ConversationArchiveState> {
+  const res = await httpClient.post<ConversationArchiveState>(`/chat/conversations/${conversationId}/restore`);
+  return res.data;
+}
+
 export async function getQuestionSuggestions(query: string, limit = 5): Promise<QuestionSuggestion[]> {
   const res = await httpClient.get<QuestionSuggestion[]>("/chat/suggestions", { params: { query, limit } });
   return Array.isArray(res.data) ? res.data : [];
 }
-

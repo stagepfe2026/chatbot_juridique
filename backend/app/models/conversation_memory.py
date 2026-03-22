@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -9,12 +9,14 @@ class ConversationModel:
     created_at: datetime
     updated_at: datetime
     user_id: str | None = None
+    is_archived: bool = False
+    archived_at: datetime | None = None
     id: str | None = None
 
     @classmethod
     def new(cls, summary: str = "") -> "ConversationModel":
         now = datetime.now(timezone.utc)
-        return cls(summary=summary.strip(), created_at=now, updated_at=now)
+        return cls(summary=summary.strip(), created_at=now, updated_at=now, is_archived=False, archived_at=None)
 
     @classmethod
     def from_mongo(cls, raw: dict[str, Any]) -> "ConversationModel":
@@ -26,6 +28,8 @@ class ConversationModel:
             created_at=created_at,
             updated_at=updated_at,
             user_id=str(raw.get("userId")) if raw.get("userId") is not None else None,
+            is_archived=bool(raw.get("isArchived", False)),
+            archived_at=raw.get("archivedAt"),
         )
 
     def to_mongo_insert(self) -> dict[str, Any]:
@@ -34,6 +38,8 @@ class ConversationModel:
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
             "userId": self.user_id,
+            "isArchived": self.is_archived,
+            "archivedAt": self.archived_at,
         }
 
 
@@ -91,4 +97,3 @@ class MessageModel:
         if self.source_file:
             doc["sourceFile"] = self.source_file
         return doc
-

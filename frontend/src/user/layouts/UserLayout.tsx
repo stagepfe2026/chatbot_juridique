@@ -1,4 +1,4 @@
-﻿import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { getFavoriteDocumentsCount } from "../../services/userDocuments.service";
@@ -123,6 +123,24 @@ export default function UserLayout() {
             </NavLink>
 
             <NavLink
+              to="/user/conversations"
+              className={({ isActive }) =>
+                `${navBase} ${
+                  isActive
+                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                }`
+              }
+            >
+              <NavIcon>
+                <path d="M6 4h12a2 2 0 0 1 2 2v12l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2z" />
+                <path d="M8 8h8" />
+                <path d="M8 12h8" />
+              </NavIcon>
+              Conversations
+            </NavLink>
+
+            <NavLink
               to="/user/favoris"
               className={({ isActive }) =>
                 `${navBase} ${
@@ -141,6 +159,41 @@ export default function UserLayout() {
                   {favoriteCount}
                 </span>
               )}
+            </NavLink>
+
+            <NavLink
+              to="/user/reclamations"
+              className={({ isActive }) =>
+                `${navBase} ${
+                  isActive
+                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                }`
+              }
+            >
+              <NavIcon>
+                <path d="M12 9h.01" />
+                <path d="M10.3 4.8 3.9 16a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7-3L13.7 4.8a2 2 0 0 0-3.4 0z" />
+                <path d="M12 13v2" />
+              </NavIcon>
+              Reclamation
+            </NavLink>
+
+            <NavLink
+              to="/user/profil"
+              className={({ isActive }) =>
+                `${navBase} ${
+                  isActive
+                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                }`
+              }
+            >
+              <NavIcon>
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5 20a7 7 0 0 1 14 0" />
+              </NavIcon>
+              Mon profil
             </NavLink>
 
             <button
@@ -165,5 +218,3 @@ export default function UserLayout() {
     </div>
   );
 }
-
-

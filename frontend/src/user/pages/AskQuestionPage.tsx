@@ -1,13 +1,16 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import jsPDF from "jspdf";
 import type { SourceFile } from "../../models/chat.models";
 import type { ConversationMessage, ConversationSummary } from "../../models/conversation.models";
 import {
+  archiveConversation,
   askQuestion,
   getConversationMessages,
   getQuestionSuggestions,
   listMyConversations,
 } from "../../services/user.service";
+import { publishSnackbar } from "../../utils/snackbarBus";
 
 type ChatMessage = {
   id: string;
@@ -80,6 +83,82 @@ function countTypedWords(value: string): number {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function slugifyFilenamePart(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+}
+
+function buildPdfFilename(question: string): string {
+  const base = slugifyFilenamePart(question).slice(0, 60) || "reponse-juridique";
+  return `${base}-${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
+function downloadAnswerPdf(question: string, answer: string, sourceFile?: SourceFile | null): void {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 16;
+  let cursorY = 20;
+
+  const writeParagraph = (text: string, fontSize = 11) => {
+    doc.setFontSize(fontSize);
+    const lines = doc.splitTextToSize(text, pageWidth - margin * 2);
+    const estimatedHeight = lines.length * (fontSize * 0.45) + 4;
+    if (cursorY + estimatedHeight > pageHeight - margin) {
+      doc.addPage();
+      cursorY = margin;
+    }
+    doc.text(lines, margin, cursorY);
+    cursorY += estimatedHeight;
+  };
+
+  doc.setFillColor(185, 28, 28);
+  doc.roundedRect(margin, 10, pageWidth - margin * 2, 18, 4, 4, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.text("Assistant Juridique - Reponse exportee", margin + 4, 21);
+
+  doc.setTextColor(51, 65, 85);
+  doc.setFontSize(10);
+  doc.text(
+    `Genere le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(new Date())}`,
+    margin,
+    36,
+  );
+
+  cursorY = 46;
+  doc.setFontSize(12);
+  doc.setTextColor(185, 28, 28);
+  doc.text("Question", margin, cursorY);
+  cursorY += 7;
+  doc.setTextColor(15, 23, 42);
+  writeParagraph(question || "Question non disponible.");
+
+  cursorY += 2;
+  doc.setFontSize(12);
+  doc.setTextColor(185, 28, 28);
+  doc.text("Reponse", margin, cursorY);
+  cursorY += 7;
+  doc.setTextColor(15, 23, 42);
+  writeParagraph(answer || "Reponse non disponible.");
+
+  if (sourceFile?.filename) {
+    cursorY += 2;
+    doc.setFontSize(12);
+    doc.setTextColor(185, 28, 28);
+    doc.text("Document source", margin, cursorY);
+    cursorY += 7;
+    doc.setTextColor(51, 65, 85);
+    writeParagraph(sourceFile.filename, 10);
+  }
+
+  doc.save(buildPdfFilename(question));
+}
+
 export default function AskQuestionPage() {
   const [question, setQuestion] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
@@ -89,12 +168,11 @@ export default function AskQuestionPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyItems, setHistoryItems] = useState<ConversationSummary[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
-  const [hiddenHistoryIds] = useState<Record<string, boolean>>({});
-  const [customTitles] = useState<Record<string, string>>({});
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [hasSuggestionSearch, setHasSuggestionSearch] = useState(false);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -111,7 +189,6 @@ export default function AskQuestionPage() {
     void refreshHistory();
   }, []);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -158,9 +235,9 @@ export default function AskQuestionPage() {
   const visibleHistory = useMemo(
     () =>
       [...historyItems]
-        .filter((item) => !hiddenHistoryIds[item.id])
+        .filter((item) => !item.isArchived)
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    [historyItems, hiddenHistoryIds],
+    [historyItems],
   );
 
   function resetSuggestions() {
@@ -189,6 +266,26 @@ export default function AskQuestionPage() {
       setMessages(fromConversationMessages(data));
     } catch {
       setError("Erreur de chargement de la conversation.");
+    }
+  }
+
+  async function handleArchiveConversation(target: ConversationSummary) {
+    try {
+      setArchivingId(target.id);
+      const state = await archiveConversation(target.id);
+      setHistoryItems((current) =>
+        current.map((item) =>
+          item.id === target.id
+            ? { ...item, isArchived: state.isArchived, archivedAt: state.archivedAt, updatedAt: state.updatedAt }
+            : item,
+        ),
+      );
+      if (activeHistoryId === target.id || conversationId === target.id) {
+        startNewQuestion();
+      }
+      publishSnackbar({ variant: "success", message: "Conversation archivee." });
+    } finally {
+      setArchivingId(null);
     }
   }
 
@@ -234,8 +331,6 @@ export default function AskQuestionPage() {
 
   return (
     <div className="flex h-[calc(100vh-140px)] min-h-[calc(100vh-140px)] gap-4 ">
-
-      {/* Sidebar */}
       {sidebarOpen && (
         <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(100vh-120px)] overflow-y-auto rounded-xl">
           <button
@@ -246,31 +341,47 @@ export default function AskQuestionPage() {
             Nouvelle conversation
           </button>
 
-          <div className="mt-4 text-[10px] uppercase tracking-wide text-slate-400">Conversations</div>
+          <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-400">
+            <span>Conversations actives</span>
+            <span>{visibleHistory.length}</span>
+          </div>
 
           <div className="mt-3 space-y-2">
             {visibleHistory.map((item) => (
               <div
                 key={item.id}
-                className={`rounded-lg border px-3 py-2 text-sm cursor-pointer ${
+                className={`rounded-lg border px-3 py-2 text-sm ${
                   activeHistoryId === item.id
                     ? "border-red-200 bg-red-50"
                     : "border-transparent hover:bg-slate-50"
                 }`}
-                onClick={() => void openHistoryItem(item)}
               >
-                <div className="truncate font-medium text-slate-800">{customTitles[item.id] ?? item.title}</div>
-                <div className="text-xs text-slate-400">{formatDayLabel(item.updatedAt)}</div>
+                <button className="w-full text-left" onClick={() => void openHistoryItem(item)}>
+                  <div className="truncate font-medium text-slate-800">{item.title}</div>
+                  <div className="text-xs text-slate-400">{formatDayLabel(item.updatedAt)}</div>
+                </button>
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    disabled={archivingId === item.id}
+                    onClick={() => void handleArchiveConversation(item)}
+                    className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-60"
+                  >
+                    {archivingId === item.id ? "Archivage..." : "Archiver"}
+                  </button>
+                </div>
               </div>
             ))}
+            {visibleHistory.length === 0 && (
+              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-400">
+                Aucune conversation active pour le moment.
+              </div>
+            )}
           </div>
         </aside>
       )}
 
-      {/* Chat */}
       <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">Assistant Juridique IA</div>
@@ -289,39 +400,60 @@ export default function AskQuestionPage() {
           </button>
         </div>
 
-        {/* Messages */}
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5 scroll-smooth">
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-2xl rounded-xl px-3 py-2 text-sm ${
-                message.role === "user" ? "bg-red-600 text-white shadow-sm" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-sm"
-              }`}>
-                <div className="whitespace-pre-wrap">{message.text}</div>
-                {message.sourceFile && (
-                  <a
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                    href={message.sourceFile.downloadUrl}
-                    download={message.sourceFile.filename}
-                  >
-                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-600">
-                      <Icon size={14}>
-                        <path d="M8 3h6l4 4v14H6V3z" />
-                        <path d="M14 3v4h4" />
-                      </Icon>
-                    </span>
-                    <span className="truncate">{message.sourceFile.filename}</span>
-                  </a>
-                )}
-                <div className="mt-1 text-[10px] opacity-70">{message.time}</div>
-              </div>
-            </div>
-          ))}
+          {messages.map((message, index) => {
+            const relatedQuestion =
+              message.role === "assistant"
+                ? [...messages.slice(0, index)].reverse().find((item) => item.role === "user")?.text ?? ""
+                : "";
 
-          {loading && <div className="text-sm text-slate-400">IA en train de répondre...</div>}
+            return (
+              <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-2xl rounded-xl px-3 py-2 text-sm ${
+                  message.role === "user" ? "bg-red-600 text-white shadow-sm" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-sm"
+                }`}>
+                  <div className="whitespace-pre-wrap">{message.text}</div>
+                  {message.role === "assistant" && (
+                    <button
+                      type="button"
+                      onClick={() => downloadAnswerPdf(relatedQuestion, message.text, message.sourceFile)}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-600">
+                        <Icon size={14}>
+                          <path d="M12 3v12" />
+                          <path d="m7 10 5 5 5-5" />
+                          <path d="M5 21h14" />
+                        </Icon>
+                      </span>
+                      <span>Telecharger en PDF</span>
+                    </button>
+                  )}
+                  {message.sourceFile && (
+                    <a
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                      href={message.sourceFile.downloadUrl}
+                      download={message.sourceFile.filename}
+                    >
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-600">
+                        <Icon size={14}>
+                          <path d="M8 3h6l4 4v14H6V3z" />
+                          <path d="M14 3v4h4" />
+                        </Icon>
+                      </span>
+                      <span className="truncate">{message.sourceFile.filename}</span>
+                    </a>
+                  )}
+                  <div className="mt-1 text-[10px] opacity-70">{message.time}</div>
+                </div>
+              </div>
+            );
+          })}
+
+          {loading && <div className="text-sm text-slate-400">IA en train de r�pondre...</div>}
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
         <div className="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
           <div className="flex items-end gap-2">
             <div className="relative flex-1">
@@ -384,12 +516,7 @@ export default function AskQuestionPage() {
             </button>
           </div>
         </div>
-
       </section>
     </div>
   );
 }
-
-
-
-

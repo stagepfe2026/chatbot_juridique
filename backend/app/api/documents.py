@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 
 from app.auth import require_role
 from app.controllers.documents_controller import (
@@ -12,7 +12,8 @@ from app.controllers.documents_controller import (
     qdrant_stats_controller,
 )
 from app.models import UserRole
-from app.schemas import DocumentCategory, ImportDocumentResponse, IndexManyResponse
+from app.schemas import AuthUser, AuditLogLevel, AuditLogStatus, DocumentCategory, ImportDocumentResponse, IndexManyResponse
+from app.services.audit_logs_service import record_audit_event
 
 router = APIRouter(
     prefix="/admin/documents",
@@ -28,24 +29,53 @@ def list_documents():
 
 @router.post("/import", response_model=ImportDocumentResponse)
 def import_document(
+    request: Request,
+    current_user: AuthUser = Depends(require_role(UserRole.ADMIN)),
     file: UploadFile = File(...),
     title: str = Form(...),
     category: DocumentCategory = Form(...),
     description: str = Form(default=""),
     realizedAt: str = Form(...),
 ):
-    return import_document_controller(
+    result = import_document_controller(
         file=file,
         title=title,
         category=category,
         description=description,
         realized_at=realizedAt,
     )
+    record_audit_event(
+        request=request,
+        action="IMPORT_DOC",
+        user=current_user.email,
+        resource=title,
+        status=AuditLogStatus.SUCCESS if result.status.value == "INDEXED" else AuditLogStatus.WARNING,
+        level=AuditLogLevel.INFO,
+        message="Import de document termine.",
+        payload={
+            "documentId": result.documentId,
+            "filename": result.filename,
+            "status": result.status.value,
+            "category": category.value,
+        },
+    )
+    return result
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_document(document_id: str):
-    return delete_document_controller(document_id)
+def delete_document(document_id: str, request: Request, current_user: AuthUser = Depends(require_role(UserRole.ADMIN))):
+    delete_document_controller(document_id)
+    record_audit_event(
+        request=request,
+        action="DELETE_DOC",
+        user=current_user.email,
+        resource=document_id,
+        status=AuditLogStatus.SUCCESS,
+        level=AuditLogLevel.INFO,
+        message="Suppression definitive d'un document.",
+        payload={"documentId": document_id},
+    )
+    return None
 
 
 @router.post("/index-existing", response_model=IndexManyResponse)

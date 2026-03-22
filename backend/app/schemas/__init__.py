@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -119,6 +119,15 @@ class ConversationSummaryOut(BaseModel):
     createdAt: datetime
     updatedAt: datetime
     messageCount: int
+    isArchived: bool = False
+    archivedAt: datetime | None = None
+
+
+class ConversationArchiveStateOut(BaseModel):
+    conversationId: str
+    isArchived: bool
+    archivedAt: datetime | None = None
+    updatedAt: datetime
 
 
 class ConversationMessageOut(BaseModel):
@@ -129,6 +138,8 @@ class ConversationMessageOut(BaseModel):
     createdAt: datetime
     questionId: str | None = None
     sourceFile: SourceFile | None = None
+
+
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     FINANCE_USER = "FINANCE_USER"
@@ -142,6 +153,18 @@ class AuthUser(BaseModel):
     role: UserRole
 
 
+class UpdateProfileRequest(BaseModel):
+    nom: str = Field(min_length=1, max_length=120)
+    prenom: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=3, max_length=255)
+
+
+class UpdatePasswordRequest(BaseModel):
+    currentPassword: str = Field(min_length=1, max_length=255)
+    newPassword: str = Field(min_length=8, max_length=255)
+    confirmPassword: str = Field(min_length=8, max_length=255)
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -152,3 +175,61 @@ class LoginResponse(BaseModel):
     sessionExpiresAt: datetime
 
 
+class ClaimCategory(str, Enum):
+    ACCOUNT = "ACCOUNT"
+    CHATBOT = "CHATBOT"
+    DOCUMENT = "DOCUMENT"
+    OTHER = "OTHER"
+
+
+class ClaimStatus(str, Enum):
+    SUBMITTED = "SUBMITTED"
+
+
+class ClaimCreateRequest(BaseModel):
+    category: ClaimCategory
+    subject: str = Field(min_length=3, max_length=160)
+    description: str = Field(min_length=10, max_length=3000)
+
+
+class ClaimOut(BaseModel):
+    id: str
+    userId: str
+    userEmail: str
+    category: ClaimCategory
+    subject: str
+    description: str
+    status: ClaimStatus
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class AuditLogStatus(str, Enum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    WARNING = "WARNING"
+
+
+class AuditLogLevel(str, Enum):
+    INFO = "INFO"
+    CRITICAL = "CRITICAL"
+
+
+class AuditLogDetailsOut(BaseModel):
+    message: str
+    endpoint: str | None = None
+    payload: dict | None = None
+    userAgent: str | None = None
+    metadata: dict | None = None
+
+
+class AuditLogOut(BaseModel):
+    id: str
+    user: str
+    action: str
+    resource: str
+    status: AuditLogStatus
+    level: AuditLogLevel
+    ip: str
+    timestamp: datetime
+    details: AuditLogDetailsOut
