@@ -1,7 +1,7 @@
-﻿from fastapi import HTTPException, status
+from fastapi import HTTPException, status
 
 from app.repositories import ChatQuestionsRepository, ConversationsRepository, MessagesRepository
-from app.schemas import ConversationMessageOut, ConversationOut, ConversationSummaryOut
+from app.schemas import ConversationArchiveStateOut, ConversationMessageOut, ConversationOut, ConversationSummaryOut
 
 _chat_repo = ChatQuestionsRepository()
 _conversations_repo = ConversationsRepository()
@@ -18,8 +18,6 @@ def list_recent_conversations(limit: int = 200) -> list[ConversationOut]:
             askedAt=model.asked_at,
             answeredAt=model.answered_at,
             createdAt=model.created_at,
-            questionId=model.question_id,
-            sourceFile=model.source_file,
             userId=model.user_id,
         )
         for model in records
@@ -61,6 +59,8 @@ def list_recent_conversations_by_user(user_id: str, limit: int = 100) -> list[Co
                 createdAt=conversation.created_at,
                 updatedAt=conversation.updated_at,
                 messageCount=_messages_repo.count_messages(conversation.id),
+                isArchived=conversation.is_archived,
+                archivedAt=conversation.archived_at,
             )
         )
 
@@ -75,7 +75,6 @@ def list_conversation_messages_for_user(user_id: str, conversation_id: str, limi
     for model in models:
         question_id = getattr(model, "question_id", None)
         source_file = getattr(model, "source_file", None)
-        # Backward-compat: older message records did not store questionId/sourceFile.
         if model.role == "assistant" and (not question_id or not source_file):
             record = _chat_repo.find_question_record_by_conversation_and_answer(conversation_id, model.content)
             if record:
@@ -98,3 +97,26 @@ def list_conversation_messages_for_user(user_id: str, conversation_id: str, limi
         )
     return items
 
+
+def archive_conversation_for_user(user_id: str, conversation_id: str) -> ConversationArchiveStateOut:
+    updated = _conversations_repo.set_archived_state(conversation_id=conversation_id, user_id=user_id, is_archived=True)
+    if not updated or not updated.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation introuvable.")
+    return ConversationArchiveStateOut(
+        conversationId=updated.id,
+        isArchived=True,
+        archivedAt=updated.archived_at,
+        updatedAt=updated.updated_at,
+    )
+
+
+def restore_conversation_for_user(user_id: str, conversation_id: str) -> ConversationArchiveStateOut:
+    updated = _conversations_repo.set_archived_state(conversation_id=conversation_id, user_id=user_id, is_archived=False)
+    if not updated or not updated.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation introuvable.")
+    return ConversationArchiveStateOut(
+        conversationId=updated.id,
+        isArchived=False,
+        archivedAt=updated.archived_at,
+        updatedAt=updated.updated_at,
+    )

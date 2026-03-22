@@ -4,6 +4,8 @@ from app.repositories.documents_repository import DocumentsRepository
 from app.repositories.messages_repository import MessagesRepository
 from app.repositories.sessions_repository import SessionsRepository
 from app.repositories.users_repository import UsersRepository
+from app.repositories.audit_logs_repository import AuditLogsRepository
+from app.repositories.claims_repository import ClaimsRepository
 
 __all__ = [
     "DocumentsRepository",
@@ -12,4 +14,6 @@ __all__ = [
     "SessionsRepository",
     "ConversationsRepository",
     "MessagesRepository",
+    "AuditLogsRepository",
+    "ClaimsRepository",
 ]

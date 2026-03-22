@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from bson import ObjectId
+from pymongo import ReturnDocument
 
 from app.database.connections import get_conversations_collection
 from app.models.conversation_memory import ConversationModel
@@ -54,6 +55,27 @@ class ConversationsRepository:
         )
         return [ConversationModel.from_mongo(raw) for raw in cursor]
 
+    def set_archived_state(self, conversation_id: str, user_id: str, is_archived: bool) -> ConversationModel | None:
+        object_id = self._parse_id(conversation_id)
+        if not object_id:
+            return None
+
+        now = datetime.now(timezone.utc)
+        result = get_conversations_collection().find_one_and_update(
+            {"_id": object_id, "userId": user_id},
+            {
+                "$set": {
+                    "isArchived": is_archived,
+                    "archivedAt": now if is_archived else None,
+                    "updatedAt": now,
+                }
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if not result:
+            return None
+        return ConversationModel.from_mongo(result)
+
     def can_access(self, conversation_id: str, user_id: str) -> bool:
         conversation = self.get_conversation_by_id(conversation_id)
         if not conversation:
@@ -74,7 +96,6 @@ class ConversationsRepository:
                     return existing.id
                 if user_id is None or existing.user_id == user_id:
                     return existing.id
-                # Conversation d'un autre utilisateur: on crée une nouvelle conversation.
                 return self.create_conversation(summary="", user_id=user_id)
         return self.create_conversation(summary="", user_id=user_id)
 
@@ -82,6 +103,7 @@ class ConversationsRepository:
         conversations = get_conversations_collection()
         conversations.create_index("updatedAt")
         conversations.create_index([("userId", 1), ("updatedAt", -1)])
+        conversations.create_index([("userId", 1), ("isArchived", 1), ("updatedAt", -1)])
 
     @staticmethod
     def _parse_id(raw_id: str) -> ObjectId | None:

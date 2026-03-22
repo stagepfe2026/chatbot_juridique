@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     mongodb_sessions_collection: str = "sessions"
     mongodb_conversations_collection: str = "conversations"
     mongodb_messages_collection: str = "messages"
+    mongodb_audit_logs_collection: str = "audit_logs"
 
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str | None = None
@@ -65,4 +66,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

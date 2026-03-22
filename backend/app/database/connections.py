@@ -34,3 +34,11 @@ def get_conversations_collection():
 
 def get_messages_collection():
     return mongo_db[settings.mongodb_messages_collection]
+
+
+def get_audit_logs_collection():
+    return mongo_db[settings.mongodb_audit_logs_collection]
+
+
+def get_claims_collection():
+    return mongo_db["claims"]
