@@ -1,4 +1,4 @@
-﻿import type { SourceFile } from "./chat.models";
+import type { SourceFile } from "./chat.models";
 
 export interface Conversation {
   id: string;
@@ -18,6 +18,15 @@ export interface ConversationSummary {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  isArchived: boolean;
+  archivedAt?: string | null;
+}
+
+export interface ConversationArchiveState {
+  conversationId: string;
+  isArchived: boolean;
+  archivedAt?: string | null;
+  updatedAt: string;
 }
 
 export interface ConversationMessage {
@@ -29,4 +38,3 @@ export interface ConversationMessage {
   questionId?: string | null;
   sourceFile?: SourceFile | null;
 }
-

@@ -90,6 +90,28 @@ export default function AdminLayout() {
               Documents
             </NavLink>
 
+            <NavLink
+              to="/admin/audit-logs"
+              className={({ isActive }) =>
+                `${linkBase} ${
+                  isActive
+                    ? "bg-red-600 text-white"
+                    : "text-slate-700 hover:bg-slate-100"
+                }`
+              }
+            >
+              <Icon>
+                <path d="M7 4h10" />
+                <path d="M7 9h10" />
+                <path d="M7 14h6" />
+                <path d="M5 4h.01" />
+                <path d="M5 9h.01" />
+                <path d="M5 14h.01" />
+              </Icon>
+
+              Audit Logs
+            </NavLink>
+
           </nav>
 
           {/* Logout */}
@@ -121,6 +143,7 @@ export default function AdminLayout() {
     </div>
   );
 }
+
 
 
 

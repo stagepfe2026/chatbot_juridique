@@ -1,6 +1,7 @@
 import { httpClient } from "./httpClient";
 import type { Conversation } from "../models/conversation.models";
 import type { Document, ImportDocumentForm, ImportDocumentResponse } from "../models/document.models";
+import type { AuditLog } from "../admin/pages/AuditLogs/auditLogs.types";
 
 export async function importDocument(form: ImportDocumentForm): Promise<ImportDocumentResponse> {
   if (!form.file) {
@@ -42,5 +43,10 @@ export async function listDocuments(): Promise<Document[]> {
 
 export async function listConversations(): Promise<Conversation[]> {
   const res = await httpClient.get<Conversation[]>("/admin/conversations");
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function listAuditLogs(limit = 200): Promise<AuditLog[]> {
+  const res = await httpClient.get<AuditLog[]>(`/admin/audit-logs?limit=${limit}`);
   return Array.isArray(res.data) ? res.data : [];
 }
