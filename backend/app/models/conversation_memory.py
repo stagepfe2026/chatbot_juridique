@@ -9,6 +9,7 @@ class ConversationModel:
     created_at: datetime
     updated_at: datetime
     user_id: str | None = None
+    custom_title: str | None = None
     is_archived: bool = False
     archived_at: datetime | None = None
     id: str | None = None
@@ -28,6 +29,7 @@ class ConversationModel:
             created_at=created_at,
             updated_at=updated_at,
             user_id=str(raw.get("userId")) if raw.get("userId") is not None else None,
+            custom_title=str(raw.get("customTitle")) if raw.get("customTitle") is not None else None,
             is_archived=bool(raw.get("isArchived", False)),
             archived_at=raw.get("archivedAt"),
         )
@@ -38,6 +40,7 @@ class ConversationModel:
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
             "userId": self.user_id,
+            "customTitle": self.custom_title,
             "isArchived": self.is_archived,
             "archivedAt": self.archived_at,
         }

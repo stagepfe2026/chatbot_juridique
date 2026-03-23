@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import { useTheme } from "../../theme/ThemeContext";
 
 function Icon({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ const linkBase =
 
 export default function AdminLayout() {
   const { logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   async function onLogout() {
@@ -22,11 +24,11 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.08),_transparent_30%),#fbf5f6] text-slate-900">
+    <div className={isDark ? "min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.16),_transparent_36%),#0f172a] text-slate-100" : "min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.08),_transparent_30%),#fbf5f6] text-slate-900"}>
       <div className="min-h-screen">
 
         {/* Sidebar */}
-        <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col overflow-y-auto border-r border-slate-200 bg-white/90">
+        <aside className={isDark ? "fixed inset-y-0 left-0 z-20 flex w-64 flex-col overflow-y-auto border-r border-slate-700 bg-slate-900/95" : "fixed inset-y-0 left-0 z-20 flex w-64 flex-col overflow-y-auto border-r border-slate-200 bg-white/90"}>
 
           {/* Logo */}
           <div className="px-6 py-5">
@@ -40,13 +42,13 @@ export default function AdminLayout() {
 
               <div>
                 <div className="text-sm font-bold tracking-tight">JurisBot</div>
-                <div className="text-xs text-slate-500">Administration</div>
+                <div className={isDark ? "text-xs text-slate-400" : "text-xs text-slate-500"}>Administration</div>
               </div>
             </div>
           </div>
 
           {/* Section title */}
-          <div className="px-6 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className={isDark ? "px-6 text-xs font-semibold uppercase tracking-wide text-slate-500" : "px-6 text-xs font-semibold uppercase tracking-wide text-slate-400"}>
             Navigation
           </div>
 
@@ -59,7 +61,7 @@ export default function AdminLayout() {
                 `${linkBase} ${
                   isActive
                     ? "bg-red-600 text-white"
-                    : "text-slate-700 hover:bg-slate-100"
+                    : isDark ? "text-slate-200 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
                 }`
               }
             >
@@ -79,7 +81,7 @@ export default function AdminLayout() {
                 `${linkBase} ${
                   isActive
                     ? "bg-red-600 text-white"
-                    : "text-slate-700 hover:bg-slate-100"
+                    : isDark ? "text-slate-200 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
                 }`
               }
             >
@@ -91,12 +93,31 @@ export default function AdminLayout() {
             </NavLink>
 
             <NavLink
+              to="/admin/claims"
+              className={({ isActive }) =>
+                `${linkBase} ${
+                  isActive
+                    ? "bg-red-600 text-white"
+                    : isDark ? "text-slate-200 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
+                }`
+              }
+            >
+              <Icon>
+                <path d="M4 5.8A2.8 2.8 0 0 1 6.8 3h10.4A2.8 2.8 0 0 1 20 5.8v7.4A2.8 2.8 0 0 1 17.2 16H9l-5 4V5.8z" />
+                <path d="M12 8h.01" />
+                <path d="M12 11.5v2.8" />
+              </Icon>
+
+              Reclamations
+            </NavLink>
+
+            <NavLink
               to="/admin/audit-logs"
               className={({ isActive }) =>
                 `${linkBase} ${
                   isActive
                     ? "bg-red-600 text-white"
-                    : "text-slate-700 hover:bg-slate-100"
+                    : isDark ? "text-slate-200 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
                 }`
               }
             >
@@ -117,8 +138,34 @@ export default function AdminLayout() {
           {/* Logout */}
           <div className="mt-auto p-4">
             <button
+              onClick={toggleTheme}
+              className={isDark
+                ? "mb-2 flex w-full items-center gap-3 rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-amber-300 hover:text-amber-200"
+                : "mb-2 flex w-full items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+              }
+            >
+              <Icon>
+                {isDark ? (
+                  <>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2" />
+                    <path d="M12 20v2" />
+                    <path d="m4.9 4.9 1.4 1.4" />
+                    <path d="m17.7 17.7 1.4 1.4" />
+                  </>
+                ) : (
+                  <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+                )}
+              </Icon>
+              {isDark ? "Soleil" : "Lune"}
+            </button>
+
+            <button
               onClick={onLogout}
-              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-semibold text-slate-700 rounded-lg hover:bg-red-50 hover:text-red-600 transition"
+              className={isDark
+                ? "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 hover:text-red-200"
+                : "flex items-center gap-3 w-full px-3 py-2 text-sm font-semibold text-slate-700 rounded-lg hover:bg-red-50 hover:text-red-600 transition"
+              }
             >
               <Icon>
                 <path d="M10 17l5-5-5-5" />

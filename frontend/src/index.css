@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -43,4 +43,85 @@
   a {
     color: inherit;
   }
+}
+
+html.theme-dark body {
+  background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+  color: #e2e8f0;
+}
+
+html.theme-dark {
+  --dark-bg: #0b1220;
+  --dark-panel: #111827;
+  --dark-panel-soft: #1f2937;
+  --dark-text: #e5e7eb;
+  --dark-text-soft: #cbd5e1;
+  --dark-muted: #94a3b8;
+  --dark-border: #334155;
+}
+
+html.theme-dark .bg-white,
+html.theme-dark .bg-white\/70,
+html.theme-dark .bg-white\/80,
+html.theme-dark .bg-white\/85,
+html.theme-dark .bg-white\/90,
+html.theme-dark .bg-white\/95 {
+  background-color: var(--dark-panel) !important;
+}
+
+html.theme-dark .bg-slate-50,
+html.theme-dark .bg-slate-100,
+html.theme-dark .bg-slate-50\/70,
+html.theme-dark .bg-slate-50\/80,
+html.theme-dark .bg-slate-50\/90 {
+  background-color: var(--dark-panel-soft) !important;
+}
+
+html.theme-dark .text-slate-900,
+html.theme-dark .text-slate-800 {
+  color: var(--dark-text) !important;
+}
+
+html.theme-dark .text-slate-700,
+html.theme-dark .text-slate-600 {
+  color: var(--dark-text-soft) !important;
+}
+
+html.theme-dark .text-slate-500,
+html.theme-dark .text-slate-400 {
+  color: var(--dark-muted) !important;
+}
+
+html.theme-dark .border-slate-100,
+html.theme-dark .border-slate-200,
+html.theme-dark .border-slate-300,
+html.theme-dark .border-white\/50,
+html.theme-dark .border-white\/60,
+html.theme-dark .border-white\/80 {
+  border-color: var(--dark-border) !important;
+}
+
+html.theme-dark input,
+html.theme-dark textarea,
+html.theme-dark select {
+  background-color: #0f172a !important;
+  color: var(--dark-text) !important;
+  border-color: var(--dark-border) !important;
+}
+
+html.theme-dark input::placeholder,
+html.theme-dark textarea::placeholder {
+  color: var(--dark-muted) !important;
+}
+
+html.theme-dark .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.16) !important;
+}
+
+html.theme-dark .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+}
+
+html.theme-dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.16) !important;
 }

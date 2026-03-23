@@ -4,6 +4,8 @@ from app.services.conversations_service import (
     list_recent_conversations,
     list_recent_conversations_by_user,
     restore_conversation_for_user,
+    rename_conversation_for_user,
+    delete_conversation_for_user,
 )
 
 
@@ -25,3 +27,11 @@ def archive_user_conversation_controller(user_id: str, conversation_id: str):
 
 def restore_user_conversation_controller(user_id: str, conversation_id: str):
     return restore_conversation_for_user(user_id=user_id, conversation_id=conversation_id)
+
+
+def rename_user_conversation_controller(user_id: str, conversation_id: str, title: str):
+    return rename_conversation_for_user(user_id=user_id, conversation_id=conversation_id, title=title)
+
+
+def delete_user_conversation_controller(user_id: str, conversation_id: str):
+    return delete_conversation_for_user(user_id=user_id, conversation_id=conversation_id)

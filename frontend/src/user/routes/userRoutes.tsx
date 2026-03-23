@@ -22,3 +22,5 @@ export const userRoutes = [
   // Page qui affiche les sources d'une question donnee.
   { path: "chat/sources/:questionId", element: <SourcesPage /> },
 ];
+
+

@@ -6,9 +6,12 @@ import type { ConversationMessage, ConversationSummary } from "../../models/conv
 import {
   archiveConversation,
   askQuestion,
+  deleteConversation,
   getConversationMessages,
   getQuestionSuggestions,
   listMyConversations,
+  renameConversation,
+  restoreConversation,
 } from "../../services/user.service";
 import { publishSnackbar } from "../../utils/snackbarBus";
 
@@ -173,6 +176,13 @@ export default function AskQuestionPage() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [hasSuggestionSearch, setHasSuggestionSearch] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [menuConversationId, setMenuConversationId] = useState<string | null>(null);
+  const [archivesModalOpen, setArchivesModalOpen] = useState(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<ConversationSummary | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -240,6 +250,14 @@ export default function AskQuestionPage() {
     [historyItems],
   );
 
+  const archivedHistory = useMemo(
+    () =>
+      [...historyItems]
+        .filter((item) => item.isArchived)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [historyItems],
+  );
+
   function resetSuggestions() {
     setSuggestions([]);
     setSuggestionsOpen(false);
@@ -289,6 +307,71 @@ export default function AskQuestionPage() {
     }
   }
 
+  async function handleRestoreConversation(target: ConversationSummary) {
+    try {
+      setArchivingId(target.id);
+      const state = await restoreConversation(target.id);
+      setHistoryItems((current) =>
+        current.map((item) =>
+          item.id === target.id
+            ? { ...item, isArchived: state.isArchived, archivedAt: state.archivedAt, updatedAt: state.updatedAt }
+            : item,
+        ),
+      );
+      publishSnackbar({ variant: 'success', message: 'Conversation restauree.' });
+    } finally {
+      setArchivingId(null);
+    }
+  }
+
+
+  function openRenameModal(target: ConversationSummary) {
+    setRenameTarget(target);
+    setRenameValue(target.title);
+    setRenameModalOpen(true);
+    setMenuConversationId(null);
+  }
+
+  async function submitRename() {
+    if (!renameTarget) return;
+    const next = renameValue.trim();
+    if (!next) return;
+    try {
+      setRenamingId(renameTarget.id);
+      const updated = await renameConversation(renameTarget.id, next);
+      setHistoryItems((current) =>
+        current.map((item) =>
+          item.id === renameTarget.id ? { ...item, title: updated.title, updatedAt: updated.updatedAt } : item,
+        ),
+      );
+      setRenameModalOpen(false);
+      setRenameTarget(null);
+      setRenameValue('');
+      publishSnackbar({ variant: 'success', message: 'Conversation renommee.' });
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
+
+  async function handleDeleteConversation(target: ConversationSummary) {
+    const ok = window.confirm('Supprimer la conversation ' + target.title + ' ?');
+    if (!ok) return;
+    try {
+      setDeletingId(target.id);
+      await deleteConversation(target.id);
+      setHistoryItems((current) => current.filter((item) => item.id !== target.id));
+      setMenuConversationId(null);
+      if (activeHistoryId === target.id || conversationId === target.id) {
+        startNewQuestion();
+      }
+      publishSnackbar({ variant: 'success', message: 'Conversation supprimee.' });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+
   async function onAsk() {
     const currentQuestion = question.trim();
     if (!currentQuestion || loading) return;
@@ -333,47 +416,86 @@ export default function AskQuestionPage() {
     <div className="flex h-[calc(100vh-140px)] min-h-[calc(100vh-140px)] gap-4 ">
       {sidebarOpen && (
         <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(100vh-120px)] overflow-y-auto rounded-xl">
-          <button
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold hover:bg-red-50 hover:text-red-600"
-            onClick={startNewQuestion}
-          >
-            <Icon><path d="M12 5v14"/><path d="M5 12h14"/></Icon>
-            Nouvelle conversation
-          </button>
+          <div className="grid gap-2">
+            <button
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold hover:bg-red-50 hover:text-red-600"
+              onClick={startNewQuestion}
+            >
+              <Icon><path d="M12 5v14"/><path d="M5 12h14"/></Icon>
+              Nouvelle conversation
+            </button>
+            <button
+              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              onClick={() => setArchivesModalOpen(true)}
+            >
+              <span>Mes archives</span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">{archivedHistory.length}</span>
+            </button>
+          </div>
 
           <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-400">
             <span>Conversations actives</span>
             <span>{visibleHistory.length}</span>
           </div>
 
-          <div className="mt-3 space-y-2">
+          <div className='mt-3 space-y-2'>
             {visibleHistory.map((item) => (
               <div
                 key={item.id}
-                className={`rounded-lg border px-3 py-2 text-sm ${
-                  activeHistoryId === item.id
-                    ? "border-red-200 bg-red-50"
-                    : "border-transparent hover:bg-slate-50"
-                }`}
+                className={
+                  'group relative rounded-lg border px-3 py-2 text-sm ' +
+                  (activeHistoryId === item.id ? 'border-red-200 bg-red-50' : 'border-transparent hover:bg-slate-50')
+                }
               >
-                <button className="w-full text-left" onClick={() => void openHistoryItem(item)}>
-                  <div className="truncate font-medium text-slate-800">{item.title}</div>
-                  <div className="text-xs text-slate-400">{formatDayLabel(item.updatedAt)}</div>
+                <button className='w-full pr-8 text-left' onClick={() => void openHistoryItem(item)}>
+                  <div className='truncate font-medium text-slate-800'>{item.title}</div>
+                  <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt)}</div>
                 </button>
-                <div className="mt-2 flex justify-end">
+                <div className='absolute right-2 top-2'>
                   <button
-                    type="button"
-                    disabled={archivingId === item.id}
-                    onClick={() => void handleArchiveConversation(item)}
-                    className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-60"
+                    type='button'
+                    onClick={() => setMenuConversationId((current) => (current === item.id ? null : item.id))}
+                    className='flex h-7 w-7 items-center justify-center rounded-md text-slate-500 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100 focus:opacity-100'
+                    aria-label={'Actions pour ' + item.title}
                   >
-                    {archivingId === item.id ? "Archivage..." : "Archiver"}
+                    <Icon size={15}>
+                      <circle cx='6' cy='12' r='1.2' />
+                      <circle cx='12' cy='12' r='1.2' />
+                      <circle cx='18' cy='12' r='1.2' />
+                    </Icon>
                   </button>
+                  {menuConversationId === item.id && (
+                    <div className='absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg'>
+                      <button
+                        type='button'
+                        onClick={() => openRenameModal(item)}
+                        className='w-full px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50'
+                      >
+                        Renommer
+                      </button>
+                      <button
+                        type='button'
+                        disabled={archivingId === item.id}
+                        onClick={() => void handleArchiveConversation(item)}
+                        className='w-full px-3 py-2 text-left text-xs font-medium text-amber-700 transition hover:bg-amber-50 disabled:opacity-60'
+                      >
+                        {archivingId === item.id ? 'Archivage...' : 'Archiver'}
+                      </button>
+                      <button
+                        type='button'
+                        disabled={deletingId === item.id}
+                        onClick={() => void handleDeleteConversation(item)}
+                        className='w-full px-3 py-2 text-left text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60'
+                      >
+                        {deletingId === item.id ? 'Suppression...' : 'Supprimer'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
             {visibleHistory.length === 0 && (
-              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-400">
+              <div className='rounded-lg border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-400'>
                 Aucune conversation active pour le moment.
               </div>
             )}
@@ -450,7 +572,7 @@ export default function AskQuestionPage() {
             );
           })}
 
-          {loading && <div className="text-sm text-slate-400">IA en train de répondre...</div>}
+          {loading && <div className="text-sm text-slate-400">IA en train de rÃ©pondre...</div>}
           <div ref={bottomRef} />
         </div>
 
@@ -516,7 +638,88 @@ export default function AskQuestionPage() {
             </button>
           </div>
         </div>
+
       </section>
+
+      {renameModalOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4'>
+          <div className='w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl'>
+            <div className='text-base font-semibold text-slate-900'>Renommer la conversation</div>
+            <div className='mt-1 text-sm text-slate-500'>Donnez un nom plus clair a cette conversation.</div>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              className='mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-300'
+              placeholder='Nouveau nom'
+            />
+            <div className='mt-4 flex justify-end gap-2'>
+              <button
+                type='button'
+                onClick={() => {
+                  setRenameModalOpen(false);
+                  setRenameTarget(null);
+                  setRenameValue('');
+                }}
+                className='rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'
+              >
+                Annuler
+              </button>
+              <button
+                type='button'
+                disabled={!renameValue.trim() || (renameTarget ? renamingId === renameTarget.id : false)}
+                onClick={() => void submitRename()}
+                className='rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60'
+              >
+                {renameTarget && renamingId === renameTarget.id ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {archivesModalOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4'>
+          <div className='w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <div className='text-base font-semibold text-slate-900'>Mes archives</div>
+                <div className='text-sm text-slate-500'>{archivedHistory.length} conversation(s) archivee(s)</div>
+              </div>
+              <button
+                type='button'
+                onClick={() => setArchivesModalOpen(false)}
+                className='rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50'
+              >
+                Fermer
+              </button>
+            </div>
+            <div className='mt-4 max-h-[60vh] space-y-2 overflow-y-auto pr-1'>
+              {archivedHistory.length === 0 && (
+                <div className='rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-400'>
+                  Aucune conversation archivee.
+                </div>
+              )}
+              {archivedHistory.map((item) => (
+                <div key={item.id} className='flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2'>
+                  <div className='min-w-0 pr-3'>
+                    <div className='truncate text-sm font-medium text-slate-800'>{item.title}</div>
+                    <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt)}</div>
+                  </div>
+                  <button
+                    type='button'
+                    disabled={archivingId === item.id}
+                    onClick={() => void handleRestoreConversation(item)}
+                    className='rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60'
+                  >
+                    {archivingId === item.id ? 'Restauration...' : 'Restaurer'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

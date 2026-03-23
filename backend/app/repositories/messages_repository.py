@@ -49,6 +49,13 @@ class MessagesRepository:
             return 0
         return int(get_messages_collection().count_documents({"conversationId": object_id}))
 
+    def delete_by_conversation(self, conversation_id: str) -> int:
+        object_id = self._parse_conversation_id(conversation_id)
+        if not object_id:
+            return 0
+        result = get_messages_collection().delete_many({"conversationId": object_id})
+        return int(result.deleted_count)
+
     def ensure_indexes(self) -> None:
         messages = get_messages_collection()
         messages.create_index([("conversationId", 1), ("createdAt", 1)])

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { getFavoriteDocumentsCount } from "../../services/userDocuments.service";
+import { useTheme } from "../../theme/ThemeContext";
 
 function NavIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -24,6 +25,7 @@ const navBase =
 
 export default function UserLayout() {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [favoriteCount, setFavoriteCount] = useState(0);
@@ -55,18 +57,18 @@ export default function UserLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.12),_transparent_35%),linear-gradient(180deg,_#fff8f8,_#f8fafc)] text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-white/50 bg-white/85 backdrop-blur-sm">
+    <div className={isDark ? "min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.18),_transparent_38%),linear-gradient(180deg,_#0f172a,_#111827)] text-slate-100" : "min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.12),_transparent_35%),linear-gradient(180deg,_#fff8f8,_#f8fafc)] text-slate-900"}>
+      <header className={isDark ? "sticky top-0 z-40 border-b border-slate-700/80 bg-slate-900/85 backdrop-blur-sm" : "sticky top-0 z-40 border-b border-white/50 bg-white/85 backdrop-blur-sm"}>
         <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-500 text-xl font-black text-white shadow-[0_8px_16px_rgba(239,68,68,0.25)]">
               AJ
             </div>
             <div className="min-w-0">
-              <div className="truncate text-xl font-bold tracking-tight text-slate-800">
+              <div className={isDark ? "truncate text-xl font-bold tracking-tight text-slate-100" : "truncate text-xl font-bold tracking-tight text-slate-800"}>
                 Assistant Juridique
               </div>
-              <div className="truncate text-xs font-medium text-slate-500">
+              <div className={isDark ? "truncate text-xs font-medium text-slate-400" : "truncate text-xs font-medium text-slate-500"}>
                 Espace utilisateur - {user?.prenom} {user?.nom}
               </div>
             </div>
@@ -121,25 +123,6 @@ export default function UserLayout() {
               </NavIcon>
               Chat
             </NavLink>
-
-            <NavLink
-              to="/user/conversations"
-              className={({ isActive }) =>
-                `${navBase} ${
-                  isActive
-                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                }`
-              }
-            >
-              <NavIcon>
-                <path d="M6 4h12a2 2 0 0 1 2 2v12l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2z" />
-                <path d="M8 8h8" />
-                <path d="M8 12h8" />
-              </NavIcon>
-              Conversations
-            </NavLink>
-
             <NavLink
               to="/user/favoris"
               className={({ isActive }) =>
@@ -172,11 +155,11 @@ export default function UserLayout() {
               }
             >
               <NavIcon>
-                <path d="M12 9h.01" />
-                <path d="M10.3 4.8 3.9 16a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7-3L13.7 4.8a2 2 0 0 0-3.4 0z" />
-                <path d="M12 13v2" />
+                <path d="M4 5.8A2.8 2.8 0 0 1 6.8 3h10.4A2.8 2.8 0 0 1 20 5.8v7.4A2.8 2.8 0 0 1 17.2 16H9l-5 4V5.8z" />
+                <path d="M12 8h.01" />
+                <path d="M12 11.5v2.8" />
               </NavIcon>
-              Reclamation
+              Reclamations
             </NavLink>
 
             <NavLink
@@ -198,7 +181,37 @@ export default function UserLayout() {
 
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 no-underline transition duration-150 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              className={isDark
+                ? "inline-flex items-center gap-1.5 rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 transition duration-150 hover:border-amber-300 hover:text-amber-200"
+                : "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition duration-150 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+              }
+              onClick={toggleTheme}
+              aria-label="Changer de theme"
+            >
+              <NavIcon>
+                {isDark ? (
+                  <>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2" />
+                    <path d="M12 20v2" />
+                    <path d="m4.9 4.9 1.4 1.4" />
+                    <path d="m17.7 17.7 1.4 1.4" />
+                    <path d="M2 12h2" />
+                    <path d="M20 12h2" />
+                  </>
+                ) : (
+                  <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+                )}
+              </NavIcon>
+              {isDark ? "Soleil" : "Lune"}
+            </button>
+
+            <button
+              type="button"
+              className={isDark
+                ? "inline-flex items-center gap-1.5 rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 no-underline transition duration-150 hover:border-red-300 hover:bg-slate-700 hover:text-red-200"
+                : "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 no-underline transition duration-150 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              }
               onClick={onLogout}
             >
               <NavIcon>
@@ -218,3 +231,12 @@ export default function UserLayout() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

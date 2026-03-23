@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 
 from app.repositories import ChatQuestionsRepository, ConversationsRepository, MessagesRepository
-from app.schemas import ConversationArchiveStateOut, ConversationMessageOut, ConversationOut, ConversationSummaryOut
+from app.schemas import ConversationArchiveStateOut, ConversationMessageOut, ConversationOut, ConversationRenameOut, ConversationSummaryOut
 
 _chat_repo = ChatQuestionsRepository()
 _conversations_repo = ConversationsRepository()
@@ -42,12 +42,13 @@ def list_recent_conversations_by_user(user_id: str, limit: int = 100) -> list[Co
 
         messages = _messages_repo.list_messages(conversation.id, limit=500)
         if not messages:
-            title = _shorten(conversation.summary or "Conversation", 80) or "Conversation"
+            title = _shorten(conversation.custom_title or conversation.summary or "Conversation", 80) or "Conversation"
             preview = _shorten(conversation.summary, 140)
         else:
             first_user = next((m for m in messages if m.role == "user"), None)
             last_message = messages[-1]
-            title = _shorten(first_user.content if first_user else conversation.summary or "Conversation", 80) or "Conversation"
+            title_source = conversation.custom_title or (first_user.content if first_user else conversation.summary or "Conversation")
+            title = _shorten(title_source, 80) or "Conversation"
             preview = _shorten(last_message.content, 140)
 
         items.append(
@@ -120,3 +121,16 @@ def restore_conversation_for_user(user_id: str, conversation_id: str) -> Convers
         archivedAt=updated.archived_at,
         updatedAt=updated.updated_at,
     )
+
+
+def rename_conversation_for_user(user_id: str, conversation_id: str, title: str) -> ConversationRenameOut:
+    updated = _conversations_repo.rename_conversation(conversation_id=conversation_id, user_id=user_id, title=title)
+    if not updated or not updated.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation introuvable.")
+    return ConversationRenameOut(conversationId=updated.id, title=(updated.custom_title or "Conversation"), updatedAt=updated.updated_at)
+
+
+def delete_conversation_for_user(user_id: str, conversation_id: str) -> None:
+    if not _conversations_repo.delete_conversation(conversation_id=conversation_id, user_id=user_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation introuvable.")
+    _messages_repo.delete_by_conversation(conversation_id)

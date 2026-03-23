@@ -36,3 +36,12 @@ export async function getQuestionSuggestions(query: string, limit = 5): Promise<
   const res = await httpClient.get<QuestionSuggestion[]>("/chat/suggestions", { params: { query, limit } });
   return Array.isArray(res.data) ? res.data : [];
 }
+
+export async function renameConversation(conversationId: string, title: string): Promise<{ conversationId: string; title: string; updatedAt: string }> {
+  const res = await httpClient.post<{ conversationId: string; title: string; updatedAt: string }>(`/chat/conversations/${conversationId}/rename`, { title });
+  return res.data;
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  await httpClient.delete(`/chat/conversations/${conversationId}`);
+}

@@ -55,6 +55,33 @@ class ConversationsRepository:
         )
         return [ConversationModel.from_mongo(raw) for raw in cursor]
 
+    def rename_conversation(self, conversation_id: str, user_id: str, title: str) -> ConversationModel | None:
+        object_id = self._parse_id(conversation_id)
+        if not object_id:
+            return None
+
+        now = datetime.now(timezone.utc)
+        result = get_conversations_collection().find_one_and_update(
+            {"_id": object_id, "userId": user_id},
+            {
+                "$set": {
+                    "customTitle": title.strip(),
+                    "updatedAt": now,
+                }
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if not result:
+            return None
+        return ConversationModel.from_mongo(result)
+
+    def delete_conversation(self, conversation_id: str, user_id: str) -> bool:
+        object_id = self._parse_id(conversation_id)
+        if not object_id:
+            return False
+        result = get_conversations_collection().delete_one({"_id": object_id, "userId": user_id})
+        return bool(result.deleted_count > 0)
+
     def set_archived_state(self, conversation_id: str, user_id: str, is_archived: bool) -> ConversationModel | None:
         object_id = self._parse_id(conversation_id)
         if not object_id:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, status
 
 from app.auth import get_current_user_from_request, require_role
 from app.controllers.chat_controller import (
@@ -12,6 +12,8 @@ from app.controllers.conversations_controller import (
     list_user_conversation_messages_controller,
     list_user_conversations_controller,
     restore_user_conversation_controller,
+    rename_user_conversation_controller,
+    delete_user_conversation_controller,
 )
 from app.models import UserRole
 from app.schemas import (
@@ -22,6 +24,8 @@ from app.schemas import (
     AuthUser,
     ConversationArchiveStateOut,
     ConversationMessageOut,
+    ConversationRenameOut,
+    ConversationRenameRequest,
     ConversationSummaryOut,
     SourceItem,
 )
@@ -207,3 +211,44 @@ def get_suggestions(
         payload={"queryPreview": _preview_text(query, 80), "count": len(suggestions), "limit": limit},
     )
     return suggestions
+
+
+@router.post('/conversations/{conversation_id}/rename', response_model=ConversationRenameOut)
+def rename_conversation(
+    conversation_id: str,
+    payload: ConversationRenameRequest,
+    request: Request,
+    current_user: AuthUser = Depends(get_current_user_from_request),
+):
+    result = rename_user_conversation_controller(current_user.id, conversation_id, payload.title)
+    record_audit_event(
+        request=request,
+        action='RENAME_CONVERSATION',
+        user=current_user.email,
+        resource=conversation_id,
+        status=AuditLogStatus.SUCCESS,
+        level=AuditLogLevel.INFO,
+        message="Renommage conversation utilisateur.",
+        payload={'conversationId': conversation_id, 'title': _preview_text(payload.title, 120)},
+    )
+    return result
+
+
+@router.delete('/conversations/{conversation_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(
+    conversation_id: str,
+    request: Request,
+    current_user: AuthUser = Depends(get_current_user_from_request),
+):
+    delete_user_conversation_controller(current_user.id, conversation_id)
+    record_audit_event(
+        request=request,
+        action='DELETE_CONVERSATION',
+        user=current_user.email,
+        resource=conversation_id,
+        status=AuditLogStatus.SUCCESS,
+        level=AuditLogLevel.INFO,
+        message="Suppression conversation utilisateur.",
+        payload={'conversationId': conversation_id},
+    )
+    return None

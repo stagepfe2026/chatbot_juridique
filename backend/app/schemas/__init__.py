@@ -130,6 +130,16 @@ class ConversationArchiveStateOut(BaseModel):
     updatedAt: datetime
 
 
+class ConversationRenameRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+
+class ConversationRenameOut(BaseModel):
+    conversationId: str
+    title: str
+    updatedAt: datetime
+
+
 class ConversationMessageOut(BaseModel):
     id: str
     conversationId: str
@@ -184,12 +194,32 @@ class ClaimCategory(str, Enum):
 
 class ClaimStatus(str, Enum):
     SUBMITTED = "SUBMITTED"
+    ANSWERED = "ANSWERED"
+
+
+class ClaimAttachmentIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    mimeType: str = Field(min_length=6, max_length=80, pattern=r"^image\/")
+    size: int = Field(ge=1, le=5 * 1024 * 1024)
+    dataUrl: str = Field(min_length=30, max_length=8_000_000)
+
+
+class ClaimAttachmentOut(BaseModel):
+    name: str
+    mimeType: str
+    size: int
+    dataUrl: str
 
 
 class ClaimCreateRequest(BaseModel):
     category: ClaimCategory
     subject: str = Field(min_length=3, max_length=160)
     description: str = Field(min_length=10, max_length=3000)
+    attachments: list[ClaimAttachmentIn] = Field(default_factory=list, max_length=4)
+
+
+class ClaimReplyRequest(BaseModel):
+    message: str = Field(min_length=3, max_length=4000)
 
 
 class ClaimOut(BaseModel):
@@ -200,8 +230,17 @@ class ClaimOut(BaseModel):
     subject: str
     description: str
     status: ClaimStatus
+    attachments: list[ClaimAttachmentOut] = Field(default_factory=list)
+    adminReply: str | None = None
+    adminReplyAt: datetime | None = None
+    adminReplyBy: str | None = None
+    isReplyReadByUser: bool = True
     createdAt: datetime
     updatedAt: datetime
+
+
+class ClaimUnreadCountOut(BaseModel):
+    count: int
 
 
 class AuditLogStatus(str, Enum):
@@ -233,3 +272,4 @@ class AuditLogOut(BaseModel):
     ip: str
     timestamp: datetime
     details: AuditLogDetailsOut
+
