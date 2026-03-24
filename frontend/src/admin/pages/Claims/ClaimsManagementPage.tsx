@@ -1,20 +1,25 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { listAdminClaims, replyToClaim } from "../../../services/claims.service";
 import type { Claim, ClaimCategory, ClaimPriority, ClaimStatus } from "../../../models/claim.models";
 import { publishSnackbar } from "../../../utils/snackbarBus";
 import { buildWebSocketUrl } from "../../../services/realtime.service";
 
+const categoryMap: Record<ClaimCategory, string> = { ACCOUNT: "Compte", CHATBOT: "Chatbot", DOCUMENT: "Documents", OTHER: "Autre" };
+const priorityMap: Record<ClaimPriority, string> = { LOW: "Basse", NORMAL: "Normale", HIGH: "Haute", URGENT: "Urgente" };
+
+function statusLabel(value: ClaimStatus): string {
+  return value === "ANSWERED" ? "Traitee" : "En attente";
+}
+
 export default function ClaimsManagementPage() {
   const [claims, setClaims] = useState<Claim[]>([]);
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [userFilter, setUserFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<"ALL" | ClaimCategory>("ALL");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | ClaimStatus>("ALL");
-  const [priorityFilter, setPriorityFilter] = useState<"ALL" | ClaimPriority>("ALL");
-  const [savingClaimId, setSavingClaimId] = useState<string | null>(null);
-  async function loadClaims() {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const loadClaims = useCallback(async () => {
     setLoading(true);
     try {
       const data = await listAdminClaims();
@@ -22,58 +27,125 @@ export default function ClaimsManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
-  useEffect(() => { void loadClaims(); }, []);
+  }, []);
+
+  useEffect(() => {
+    void loadClaims();
+  }, [loadClaims]);
+
   useEffect(() => {
     const socket = new WebSocket(buildWebSocketUrl("/ws/claims"));
-    socket.onmessage = () => { void loadClaims(); };
+    socket.onmessage = () => void loadClaims();
     return () => socket.close();
-  }, []);
-  const rows = useMemo(() => {
-    return claims.filter((claim) => {
-      const okUser = userFilter.trim().length === 0 || claim.userEmail.toLowerCase().includes(userFilter.toLowerCase());
-      const okCategory = categoryFilter === "ALL" || claim.category === categoryFilter;
-      const okStatus = statusFilter === "ALL" || claim.status === statusFilter;
-      const okPriority = priorityFilter === "ALL" || (claim.priority ?? "NORMAL") === priorityFilter;
-      return okUser && okCategory && okStatus && okPriority;
-    });
-  }, [claims, userFilter, categoryFilter, statusFilter, priorityFilter]);
+  }, [loadClaims]);
+
+  const selectedClaim = useMemo(() => claims.find((claim) => claim.id === selectedId) ?? null, [claims, selectedId]);
+
   async function onReply(claimId: string) {
     const message = (replyDrafts[claimId] ?? "").trim();
-    if (message.length < 3) return publishSnackbar({ variant: "warning", message: "Reponse trop courte" });
-    setSavingClaimId(claimId);
+    if (message.length < 3) {
+      return publishSnackbar({ variant: "warning", message: "Reponse trop courte" });
+    }
+
+    setSavingId(claimId);
     try {
       await replyToClaim(claimId, { message });
       setReplyDrafts((prev) => ({ ...prev, [claimId]: "" }));
+      setSelectedId(null);
       await loadClaims();
       publishSnackbar({ variant: "success", message: "Reponse envoyee" });
     } finally {
-      setSavingClaimId(null);
+      setSavingId(null);
     }
   }
 
   return (
     <div className="grid gap-4">
-      <section className="rounded-xl border border-white/60 bg-white/90 p-4 shadow-sm">
+      <section className="rounded-xl border border-white/70 bg-white/90 p-4 shadow-sm">
         <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-400">Support desk</div>
         <h1 className="mt-1 text-2xl font-black text-slate-900">Gestion des reclamations</h1>
-        <div className="mt-3 grid gap-2 md:grid-cols-5">
-          
-          <input value={userFilter} onChange={(e) => setUserFilter(e.target.value)} placeholder="Utilisateur" className="h-10 rounded-lg border border-slate-200 px-3" />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "ALL" | ClaimStatus)} className="h-10 rounded-lg border border-slate-200 px-3"><option value="ALL">Tous statuts</option><option value="SUBMITTED">En attente</option><option value="ANSWERED">Traitee</option></select>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value as "ALL" | ClaimCategory)} className="h-10 rounded-lg border border-slate-200 px-3"><option value="ALL">Toutes categories</option><option value="ACCOUNT">Compte</option><option value="CHATBOT">Chatbot</option><option value="DOCUMENT">Documents</option><option value="OTHER">Autre</option></select>
-          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as "ALL" | ClaimPriority)} className="h-10 rounded-lg border border-slate-200 px-3"><option value="ALL">Toutes priorites</option><option value="LOW">Basse</option><option value="NORMAL">Normale</option><option value="HIGH">Haute</option><option value="URGENT">Urgente</option></select>
-        </div>
       </section>
-      <section className="rounded-xl border border-white/60 bg-white/90 p-4 shadow-sm">
-        <div className="overflow-auto rounded-lg border border-slate-200">
+
+      <section className="rounded-xl border border-white/70 bg-white/90 p-4 shadow-sm">
+        <div className="overflow-auto rounded-xl border border-slate-200">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-2">Utilisateur</th><th className="px-3 py-2">Sujet</th><th className="px-3 py-2">Categorie</th><th className="px-3 py-2">Priorite</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2">Message admin</th><th className="px-3 py-2">Repondre</th></tr></thead>
-            <tbody>{loading ? <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-500">Chargement...</td></tr> : rows.length === 0 ? <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-500">Aucune reclamation</td></tr> : rows.map((claim) => <tr key={claim.id} className="border-t border-slate-100 align-top"><td className="px-3 py-2 text-slate-600">{claim.userEmail}</td><td className="px-3 py-2 text-slate-700"><div className="font-semibold text-slate-800">{claim.subject}</div><div className="text-xs text-slate-500">{new Date(claim.createdAt).toLocaleString("fr-FR")}</div><div className="text-xs text-slate-500">Page: {claim.pageContext || "-"}</div>{claim.attachments.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{claim.attachments.map((a, i) => <a key={`${claim.id}-a-${i}`} href={a.dataUrl} target="_blank" rel="noreferrer" className="rounded bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">Capture {i + 1}</a>)}</div>}</td><td className="px-3 py-2 text-slate-600">{claim.category}</td><td className="px-3 py-2 text-slate-600">{claim.priority ?? "NORMAL"}</td><td className="px-3 py-2"><span className={claim.status === "ANSWERED" ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700" : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700"}>{claim.status === "ANSWERED" ? "Traitee" : "En attente"}</span></td><td className="px-3 py-2 text-slate-600">{claim.adminReply || "Aucun message"}</td><td className="px-3 py-2"><textarea rows={2} value={replyDrafts[claim.id] ?? ""} onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [claim.id]: e.target.value }))} className="mb-2 w-full rounded-lg border border-slate-200 px-2 py-1 text-sm" placeholder="Votre reponse" /><button type="button" onClick={() => { void onReply(claim.id); }} disabled={savingClaimId === claim.id} className="h-9 rounded-lg bg-red-600 px-3 text-xs font-bold text-white disabled:opacity-60">{savingClaimId === claim.id ? "Envoi..." : "Envoyer"}</button></td></tr>)}</tbody>
+            <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-3 py-2">Utilisateur</th>
+                <th className="px-3 py-2">Priorite</th>
+                <th className="px-3 py-2">Categorie</th>
+                <th className="px-3 py-2">Statut</th>
+                <th className="px-3 py-2 text-right">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-500">Chargement...</td></tr> : null}
+              {!loading && claims.length === 0 ? <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-500">Aucune reclamation</td></tr> : null}
+              {!loading && claims.map((claim) => (
+                <tr key={claim.id} className="border-t border-slate-100">
+                  <td className="px-3 py-2 text-slate-700">{claim.userEmail}</td>
+                  <td className="px-3 py-2 text-slate-600">{priorityMap[claim.priority ?? "NORMAL"]}</td>
+                  <td className="px-3 py-2 text-slate-600">{categoryMap[claim.category]}</td>
+                  <td className="px-3 py-2">
+                    <span className={claim.status === "ANSWERED" ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700" : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700"}>{statusLabel(claim.status)}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <button type="button" onClick={() => setSelectedId(claim.id)} className="h-9 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 transition hover:border-red-300 hover:bg-red-100">Details</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </section>
+
+      {selectedClaim ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/45 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-white/80 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-400">Details reclamation</div>
+                <h2 className="mt-1 text-xl font-black text-slate-900">{selectedClaim.subject}</h2>
+              </div>
+              <button type="button" onClick={() => setSelectedId(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Fermer</button>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><span className="font-bold text-slate-900">Utilisateur:</span> {selectedClaim.userEmail}</div>
+              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><span className="font-bold text-slate-900">Date:</span> {new Date(selectedClaim.createdAt).toLocaleString("fr-FR")}</div>
+              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><span className="font-bold text-slate-900">Categorie:</span> {categoryMap[selectedClaim.category]}</div>
+              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><span className="font-bold text-slate-900">Priorite:</span> {priorityMap[selectedClaim.priority ?? "NORMAL"]}</div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Description</div>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{selectedClaim.description}</p>
+              <p className="mt-2 text-xs text-slate-500">Page/Lien: {selectedClaim.pageContext || "-"}</p>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Captures d'ecran</div>
+              {selectedClaim.attachments.length === 0 ? <p className="mt-2 text-sm text-slate-500">Aucune capture.</p> : (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {selectedClaim.attachments.map((file, index) => (
+                    <a key={selectedClaim.id + "-img-" + index} href={file.dataUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                      <img src={file.dataUrl} alt={"Capture " + (index + 1)} className="h-44 w-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Message utilisateur</div>
+              <textarea rows={4} value={replyDrafts[selectedClaim.id] ?? ""} onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [selectedClaim.id]: e.target.value }))} className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100" placeholder="Ecrire votre message..." />
+              <div className="mt-3 flex justify-end">
+                <button type="button" onClick={() => { void onReply(selectedClaim.id); }} disabled={savingId === selectedClaim.id} className="h-10 rounded-xl bg-red-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">{savingId === selectedClaim.id ? "Envoi..." : "Envoyer"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
-

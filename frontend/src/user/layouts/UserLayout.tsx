@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { getFavoriteDocumentsCount } from "../../services/userDocuments.service";
+import { getMyClaimUnreadCount } from "../../services/claims.service";
 import { useTheme } from "../../theme/ThemeContext";
 
 function NavIcon({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export default function UserLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [favoriteCount, setFavoriteCount] = useState(0);
+  const [claimUnreadCount, setClaimUnreadCount] = useState(0);
 
   async function onLogout() {
     await logout();
@@ -44,16 +46,38 @@ export default function UserLayout() {
     }
   }
 
+  async function refreshClaimsUnreadCount() {
+    try {
+      const count = await getMyClaimUnreadCount();
+      setClaimUnreadCount(count);
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     void refreshFavoritesCount();
+    void refreshClaimsUnreadCount();
   }, [location.pathname]);
 
   useEffect(() => {
-    function onChanged() {
+    function onFavoriteChanged() {
       void refreshFavoritesCount();
     }
-    window.addEventListener("favorites-changed", onChanged);
-    return () => window.removeEventListener("favorites-changed", onChanged);
+    function onClaimsChanged(event: Event) {
+      const custom = event as CustomEvent<number>;
+      if (typeof custom.detail === "number") {
+        setClaimUnreadCount(custom.detail);
+        return;
+      }
+      void refreshClaimsUnreadCount();
+    }
+    window.addEventListener("favorites-changed", onFavoriteChanged);
+    window.addEventListener("claims-unread-changed", onClaimsChanged as EventListener);
+    return () => {
+      window.removeEventListener("favorites-changed", onFavoriteChanged);
+      window.removeEventListener("claims-unread-changed", onClaimsChanged as EventListener);
+    };
   }, []);
 
   return (
@@ -160,6 +184,11 @@ export default function UserLayout() {
                 <path d="M12 11.5v2.8" />
               </NavIcon>
               Reclamations
+              {claimUnreadCount > 0 && (
+                <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold text-current ring-1 ring-current/10">
+                  {claimUnreadCount}
+                </span>
+              )}
             </NavLink>
 
             <NavLink

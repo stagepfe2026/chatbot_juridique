@@ -103,9 +103,14 @@ export default function ClaimPage() {
 
   const rows = claims.filter((c) => statusFilter === "ALL" || c.status === statusFilter);
 
+  useEffect(() => {
+    const unread = claims.filter((c) => c.status === "ANSWERED" && !c.isReplyReadByUser).length;
+    window.dispatchEvent(new CustomEvent("claims-unread-changed", { detail: unread }));
+  }, [claims]);
+
   return (
     <div className="mx-auto grid max-w-6xl gap-4">
-      <section className="rounded-xl border border-white/60 bg-white/90 p-4 shadow-sm">
+      <section className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-400">Support utilisateur</div>
@@ -113,8 +118,8 @@ export default function ClaimPage() {
             <p className="text-sm text-slate-500">Dossier clair et suivi des reponses</p>
           </div>
           <div className="inline-flex rounded-xl bg-slate-100 p-1">
-            <button type="button" onClick={() => setTab("NEW")} className={tab === "NEW" ? "rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm" : "rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"}>Nouvelle reclamation</button>
-            <button type="button" onClick={() => setTab("LIST")} className={tab === "LIST" ? "rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm" : "rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"}>Mes reclamations {claims.filter((c) => c.status === "ANSWERED" && !c.isReplyReadByUser).length > 0 ? `(${claims.filter((c) => c.status === "ANSWERED" && !c.isReplyReadByUser).length})` : ""}</button>
+            <button type="button" onClick={() => setTab("NEW")} className={tab === "NEW" ? "rounded-lg border border-red-600 bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition" : "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-600"}>Nouvelle reclamation</button>
+            <button type="button" onClick={() => setTab("LIST")} className={tab === "LIST" ? "rounded-lg border border-red-600 bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition" : "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-600"}>Mes reclamations {claims.filter((c) => c.status === "ANSWERED" && !c.isReplyReadByUser).length > 0 ? `(${claims.filter((c) => c.status === "ANSWERED" && !c.isReplyReadByUser).length})` : ""}</button>
           </div>
         </div>
       </section>
@@ -131,20 +136,20 @@ export default function ClaimPage() {
               <input value={pageContext} onChange={(e) => setPageContext(e.target.value)} placeholder="Lien ou page concernee" className="h-10 rounded-lg border border-slate-200 px-3" />
               <input value={new Date().toLocaleString("fr-FR")} readOnly className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-slate-500" />
             </div>
-            <input type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={onFilesChange} className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm" />
+            <input type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={onFilesChange} className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             <p className="text-xs text-slate-500">Formats acceptes: PNG, JPG, WEBP. Taille max: 3 MB.</p>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-700"><span>Completude du dossier</span><span>{completion}%</span></div><div className="h-2 rounded-full bg-slate-200"><div className="h-2 rounded-full bg-red-600" style={{ width: `${completion}%` }} /></div><p className="mt-2 text-xs text-slate-500">Ajoutez plus de details pour accelerer le traitement.</p></div>
-            <div className="flex justify-end"><button type="submit" disabled={sending} className="h-10 rounded-lg bg-red-600 px-5 text-sm font-bold text-white disabled:opacity-60">{sending ? "Envoi..." : "Envoyer la reclamation"}</button></div>
+            <div className="flex justify-end"><button type="submit" disabled={sending} className="h-10 rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-60">{sending ? "Envoi..." : "Envoyer la reclamation"}</button></div>
           </form>
           <aside className="grid gap-4">
-            <div className="rounded-xl border border-white/60 bg-white/90 p-4 shadow-sm"><div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Conseils</div><div className="mt-3 grid gap-2 text-sm text-slate-600"><div className="rounded-lg bg-slate-50 p-2">Choisissez la bonne categorie</div><div className="rounded-lg bg-slate-50 p-2">Ajoutez des etapes claires</div><div className="rounded-lg bg-slate-50 p-2">Priorite urgente pour blocage critique</div></div></div>
-            <div className="rounded-xl bg-slate-900 p-4 text-white shadow-sm"><div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-300">Bonnes pratiques</div><p className="mt-2 text-sm text-slate-200">Sujet, description et page concernee rendent le traitement plus rapide.</p></div>
+            <div className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm"><div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Conseils</div><div className="mt-3 grid gap-2 text-sm text-slate-600"><div className="rounded-lg bg-slate-50 p-2">Choisissez la bonne categorie</div><div className="rounded-lg bg-slate-50 p-2">Ajoutez des etapes claires</div><div className="rounded-lg bg-slate-50 p-2">Priorite urgente pour blocage critique</div></div></div>
+            <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-red-900 shadow-sm"><div className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-400">Bonnes pratiques</div><p className="mt-2 text-sm text-red-800">Sujet, description et page concernee rendent le traitement plus rapide.</p></div>
           </aside>
         </div>
       ) : (
-        <section className="rounded-xl border border-white/60 bg-white/90 p-4 shadow-sm">
+        <section className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm">
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "ALL" | ClaimStatus)} className="mb-3 h-10 rounded-lg border border-slate-200 px-3"><option value="ALL">Tous statuts</option><option value="SUBMITTED">En attente</option><option value="ANSWERED">Traitee</option></select>
-          <div className="overflow-auto rounded-lg border border-slate-200"><table className="min-w-full text-sm"><thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-2">Sujet</th><th className="px-3 py-2">Categorie</th><th className="px-3 py-2">Priorite</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2">Message admin</th></tr></thead><tbody>{rows.length === 0 ? <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-500">Aucune reclamation</td></tr> : rows.map((claim) => <tr key={claim.id} className="border-t border-slate-100"><td className="px-3 py-2 font-semibold text-slate-800">{claim.subject}</td><td className="px-3 py-2 text-slate-600">{claim.category}</td><td className="px-3 py-2 text-slate-600">{claim.priority ?? "NORMAL"}</td><td className="px-3 py-2"><span className={claim.status === "ANSWERED" ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700" : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700"}>{statusLabel(claim.status)}</span></td><td className="px-3 py-2 text-slate-600">{claim.adminReply || "Aucun message"}</td></tr>)}</tbody></table></div>
+          <div className="overflow-auto rounded-xl border border-slate-200 bg-white"><table className="min-w-full text-sm"><thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-2">Sujet</th><th className="px-3 py-2">Categorie</th><th className="px-3 py-2">Priorite</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2">Message admin</th></tr></thead><tbody>{rows.length === 0 ? <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-500">Aucune reclamation</td></tr> : rows.map((claim) => <tr key={claim.id} className="border-t border-slate-100"><td className="px-3 py-2 font-semibold text-slate-800">{claim.subject}</td><td className="px-3 py-2 text-slate-600">{claim.category}</td><td className="px-3 py-2 text-slate-600">{claim.priority ?? "NORMAL"}</td><td className="px-3 py-2"><span className={claim.status === "ANSWERED" ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700" : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700"}>{statusLabel(claim.status)}</span></td><td className="px-3 py-2 text-slate-600">{claim.adminReply || "Aucun message"}</td></tr>)}</tbody></table></div>
         </section>
       )}
     </div>
@@ -154,6 +159,7 @@ export default function ClaimPage() {
 function statusLabel(status: ClaimStatus): string {
   return status === "ANSWERED" ? "Traitee" : "En attente";
 }
+
 
 
 
