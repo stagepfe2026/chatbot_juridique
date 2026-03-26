@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 import sys
 import unittest
 from unittest.mock import patch
@@ -6,6 +7,7 @@ from unittest.mock import patch
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.services.chat_service import create_chat_question
+
 
 class ChatServiceFlowTests(unittest.TestCase):
     @patch("app.services.chat_service.ask_question")
@@ -18,16 +20,18 @@ class ChatServiceFlowTests(unittest.TestCase):
             "conv-1",
         )
 
-        result = create_chat_question(
-            "Ma question",
-            user_id="user-1",
-            conversation_id="conv-1",
+        result = asyncio.run(
+            create_chat_question(
+                "Ma question",
+                user_id="user-1",
+                conversation_id="conv-1",
+            )
         )
 
         self.assertEqual(result.questionId, "question-1")
         self.assertEqual(result.conversationId, "conv-1")
         self.assertEqual(result.answer, "Reponse")
-        mock_ask_question.assert_called_once()
+        mock_ask_question.assert_called_once_with("Ma question", "user-1", "conv-1")
 
 
 if __name__ == "__main__":

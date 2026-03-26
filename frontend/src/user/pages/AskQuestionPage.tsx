@@ -166,7 +166,8 @@ export default function AskQuestionPage() {
   const [question, setQuestion] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState(0);
+  const [conversationBootstrapping, setConversationBootstrapping] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyItems, setHistoryItems] = useState<ConversationSummary[]>([]);
@@ -185,6 +186,8 @@ export default function AskQuestionPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const loading = pendingRequests > 0;
 
   async function refreshHistory() {
     try {
@@ -374,10 +377,17 @@ export default function AskQuestionPage() {
 
   async function onAsk() {
     const currentQuestion = question.trim();
-    if (!currentQuestion || loading) return;
+    if (!currentQuestion) return;
+    if (!conversationId && conversationBootstrapping) return;
+
+    const requestConversationId = conversationId;
+    const bootstrapping = !requestConversationId;
 
     try {
-      setLoading(true);
+      setPendingRequests((prev) => prev + 1);
+      if (bootstrapping) {
+        setConversationBootstrapping(true);
+      }
 
       const userMessage: ChatMessage = {
         id: `u-${Date.now()}`,
@@ -390,9 +400,9 @@ export default function AskQuestionPage() {
       setQuestion("");
       resetSuggestions();
 
-      const res = await askQuestion({ question: currentQuestion, conversationId });
+      const res = await askQuestion({ question: currentQuestion, conversationId: requestConversationId });
 
-      setConversationId(res.conversationId);
+      setConversationId((current) => current ?? res.conversationId);
       setActiveHistoryId(res.conversationId);
 
       const assistantMessage: ChatMessage = {
@@ -408,7 +418,10 @@ export default function AskQuestionPage() {
 
       await refreshHistory();
     } finally {
-      setLoading(false);
+      setPendingRequests((prev) => Math.max(0, prev - 1));
+      if (bootstrapping) {
+        setConversationBootstrapping(false);
+      }
     }
   }
 
@@ -625,7 +638,7 @@ export default function AskQuestionPage() {
             </div>
             <button
               onClick={() => void onAsk()}
-              disabled={!question.trim() || loading}
+              disabled={!question.trim() || (!conversationId && conversationBootstrapping)}
               className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
             >
               <Icon>

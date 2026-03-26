@@ -46,12 +46,12 @@ def _preview_text(value: str, max_len: int = 80) -> str:
 
 
 @router.post("/questions", response_model=AskQuestionResponse)
-def create_question(
+async def create_question(
     payload: AskQuestionRequest,
     request: Request,
     current_user: AuthUser = Depends(get_current_user_from_request),
 ):
-    response = create_question_with_user_controller(payload, current_user.id)
+    response = await create_question_with_user_controller(payload, current_user.id)
     record_audit_event(
         request=request,
         action="CHAT_QUESTION",
@@ -72,12 +72,12 @@ def create_question(
 
 
 @router.get("/questions/{question_id}/sources", response_model=list[SourceItem])
-def get_question_sources(
+async def get_question_sources(
     question_id: str,
     request: Request,
     current_user: AuthUser = Depends(get_current_user_from_request),
 ):
-    sources = get_question_sources_controller(question_id)
+    sources = await get_question_sources_controller(question_id)
     record_audit_event(
         request=request,
         action="VIEW_SOURCES",
@@ -92,12 +92,12 @@ def get_question_sources(
 
 
 @router.get("/documents/{document_id}/download")
-def download_source_document(
+async def download_source_document(
     document_id: str,
     request: Request,
     current_user: AuthUser = Depends(get_current_user_from_request),
 ):
-    response = download_source_document_controller(document_id)
+    response = await download_source_document_controller(document_id)
     record_audit_event(
         request=request,
         action="DOWNLOAD_DOC",
@@ -193,13 +193,13 @@ def restore_conversation(
 
 
 @router.get("/suggestions", response_model=list[str])
-def get_suggestions(
+async def get_suggestions(
     query: str,
     request: Request,
     limit: int = 5,
     current_user: AuthUser = Depends(get_current_user_from_request),
 ):
-    suggestions = get_question_suggestions_controller(query, user_id=current_user.id, limit=limit)
+    suggestions = await get_question_suggestions_controller(query, user_id=current_user.id, limit=limit)
     record_audit_event(
         request=request,
         action="CHAT_SUGGESTIONS",

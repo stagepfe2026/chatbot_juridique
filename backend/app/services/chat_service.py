@@ -1,4 +1,5 @@
-﻿from pathlib import Path
+from pathlib import Path
+import asyncio
 import mimetypes
 import subprocess
 import logging
@@ -16,15 +17,16 @@ logger = logging.getLogger(__name__)
 _documents_repo = DocumentsRepository()
 
 
-def create_chat_question(
+async def create_chat_question(
     question: str,
     user_id: str | None = None,
     conversation_id: str | None = None,
 ) -> AskQuestionResponse:
-    question_id, answer, sources, source_file, resolved_conversation_id = ask_question(
+    question_id, answer, sources, source_file, resolved_conversation_id = await asyncio.to_thread(
+        ask_question,
         question,
-        user_id=user_id,
-        conversation_id=conversation_id,
+        user_id,
+        conversation_id,
     )
     return AskQuestionResponse(
         questionId=question_id,
@@ -35,8 +37,8 @@ def create_chat_question(
     )
 
 
-def list_question_sources(question_id: str) -> list[SourceItem]:
-    return get_sources_for_question(question_id)
+async def list_question_sources(question_id: str) -> list[SourceItem]:
+    return await asyncio.to_thread(get_sources_for_question, question_id)
 
 
 def _ensure_soffice_available() -> None:
@@ -113,8 +115,8 @@ def _convert_word_to_pdf(source_path: Path) -> Path:
     return target_path
 
 
-def download_document_file(document_id: str) -> FileResponse:
-    doc = _documents_repo.get_active_document_fields_by_id(document_id, {"filePath": 1})
+async def download_document_file(document_id: str) -> FileResponse:
+    doc = await asyncio.to_thread(_documents_repo.get_active_document_fields_by_id, document_id, {"filePath": 1})
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
 
@@ -124,7 +126,7 @@ def download_document_file(document_id: str) -> FileResponse:
 
     suffix = file_path.suffix.lower()
     if suffix in {".doc", ".docx"}:
-        file_path = _convert_word_to_pdf(file_path)
+        file_path = await asyncio.to_thread(_convert_word_to_pdf, file_path)
 
     media_type, _ = mimetypes.guess_type(str(file_path))
     return FileResponse(
@@ -135,7 +137,5 @@ def download_document_file(document_id: str) -> FileResponse:
     )
 
 
-
-def list_question_suggestions(query: str, user_id: str | None = None, limit: int = 5) -> list[str]:
-    return suggest_question_suggestions(query, user_id=user_id, limit=limit)
-
+async def list_question_suggestions(query: str, user_id: str | None = None, limit: int = 5) -> list[str]:
+    return await asyncio.to_thread(suggest_question_suggestions, query, user_id, limit)

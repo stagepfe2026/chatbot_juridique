@@ -6,6 +6,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.core.config import settings
 
+_ARTICLE_HEADING_RE = re.compile(
+    r"(?im)^(?P<header>(?:article\s+(?:premier|[\divxlcdm]+)|art\.\s*\d+|art\.?\s+[\divxlcdm]+)\s*[-:])"
+)
+
 _nlp = None
 _DROP_POS = {"DET", "ADP", "CCONJ", "SCONJ"}
 _KEEP_LEMMAS = {"non"}
@@ -61,30 +65,63 @@ def tokenize_and_lemmatize(sentence: str) -> list[str]:
 
 
 def clean_text(raw_text: str) -> str:
-    # Pipeline de nettoyage: segmentation -> lemmatisation -> normalisation.
+    # Conserve la formulation juridique originale; on limite le nettoyage a une normalisation legere.
     if not raw_text:
         return ""
 
-    sentences = split_sentences(raw_text)
-    cleaned_sentences: list[str] = []
+    normalized = unicodedata.normalize("NFKC", raw_text)
+    normalized = normalized.replace("\r\n", "\n").replace("\r", "\n")
+    normalized = re.sub(r"[ \t]+", " ", normalized)
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+    lines = [line.strip() for line in normalized.split("\n")]
+    return "\n".join(line for line in lines if line)
 
-    for sentence in sentences:
-        tokens = tokenize_and_lemmatize(sentence)
-        cleaned = " ".join(tokens).strip()
-        if cleaned:
-            cleaned_sentences.append(cleaned)
 
-    return "\n".join(cleaned_sentences)
+def _split_large_legal_block(block: str) -> list[str]:
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=settings.chunk_size,
+        chunk_overlap=min(settings.chunk_overlap, max(80, settings.chunk_size // 8)),
+        separators=["\n\n", "\n", ". ", "; ", ": ", " ", ""],
+    )
+    return [chunk.strip() for chunk in splitter.split_text(block) if chunk.strip()]
+
+
+def _split_by_article(text: str) -> list[str]:
+    matches = list(_ARTICLE_HEADING_RE.finditer(text))
+    if not matches:
+        return []
+
+    blocks: list[str] = []
+    preamble = text[: matches[0].start()].strip()
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        article_block = text[start:end].strip()
+        if preamble:
+            article_block = f"{preamble}\n\n{article_block}"
+            preamble = ""
+        if article_block:
+            blocks.append(article_block)
+    return blocks
 
 
 def chunk_text(text: str) -> list[str]:
-    # Découpe le texte en chunks chevauchants pour l'indexation vectorielle.
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
-        separators=["\n\n", "\n", ". ", " ", ""],
-    )
-    return [chunk for chunk in splitter.split_text(text) if chunk.strip()]
+    # Decoupe juridique: d'abord par article, puis sous-chunks si un article est trop long.
+    clean = str(text or "").strip()
+    if not clean:
+        return []
+
+    article_blocks = _split_by_article(clean)
+    if article_blocks:
+        chunks: list[str] = []
+        for block in article_blocks:
+            if len(block) <= settings.chunk_size:
+                chunks.append(block)
+            else:
+                chunks.extend(_split_large_legal_block(block))
+        return [chunk for chunk in chunks if chunk.strip()]
+
+    return _split_large_legal_block(clean)
 
 
 def unique_chunks(chunks: list[str]) -> list[str]:

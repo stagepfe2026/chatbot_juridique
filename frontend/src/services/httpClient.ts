@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 import type { AxiosError } from "axios";
 import { publishSnackbar } from "../utils/snackbarBus";
 
@@ -60,7 +60,7 @@ function notifyFromAxiosError(error: AxiosError): void {
 export const httpClient = axios.create({
   baseURL: "/api", // si vous avez un proxy dev vers backend
   withCredentials: true, // si cookies/session
-  timeout: 120_000,
+  timeout: 240_000,
 });
 
 httpClient.interceptors.response.use(
@@ -79,3 +79,4 @@ httpClient.interceptors.response.use(
     return Promise.reject(err);
   },
 );
+

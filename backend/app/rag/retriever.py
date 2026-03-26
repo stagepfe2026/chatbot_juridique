@@ -1,6 +1,7 @@
-from app.rag.pipeline import _get_vector_store
+from app.rag.pipeline import _retrieve_relevant_docs
 
 
 def retrieve(question: str, k: int = 5):
-    # Récupère les chunks les plus pertinents depuis Qdrant.
-    return _get_vector_store().as_retriever(search_kwargs={'k': k}).invoke(question)
+    # Reutilise la logique de retrieval enrichie du pipeline principal.
+    del k
+    return _retrieve_relevant_docs(question)

@@ -1,0 +1,73 @@
+document_id: 69c537123667b62a569d0af5
+title: Loi de finance 6page
+status: INDEXED
+indexed_points: 35
+chunks_total: 35
+chunks_raw_total: 35
+error: 
+
+=== CHUNKS PREVIEW (first 10) ===
+[chunk 0] Lois
+Lois
+Loi n° 2024-48 du 9 décembre 2024, portant loi de finances pour l’année 2025(1).
+Au nom du peuple,
+L’Assemblée des représentants du peuple et le Conseil national des régions et des districts ayant adopté, Le Président de la République promulgue la loi dont la teneur suit :
+Dispositions Budgétaires
+
+Article premier - Les recettes et les dépenses du budget de l’Etat pour l’année 2025 sont estimées comme suit :
+Recettes du budget de l’Etat 50 028 000 000 Dinars
+Dépenses du budget de l’Etat 59 828 000 000 Dinars
+Résultat du budget de l’Etat (déficit) 9 800 000 000 Dinars
+
+[chunk 1] Art. 2 - Est et demeure autorisée pour l’année 2025 la perception au profit du budget de l’Etat des recettes d’un montant total de 50 028 000 000 Dinars répartis comme suit :
+Les recettes fiscales 45 249 000 000 Dinars
+Les recettes non fiscales 4 429 000 000 Dinars - Les dons 350 000 000 Dinars
+Ces recettes sont reparties conformément au tableau « A » annexé à la présente loi.
+
+[chunk 2] Art. 3 - Les recettes affectées aux comptes spéciaux du trésor pour l’année 2025 sont fixées à 1 857 050 000 Dinars conformément au tableau « B » annexé à la présente loi.
+
+[chunk 3] Art. 4 - Le montant des recettes des comptes de concours pour l’année 2025 est fixé à 53 521 000 Dinars.
+
+[chunk 4] Art. 5 - Le montant des crédits de paiement des dépenses du budget de l’Etat pour l’année 2025 est fixé à 59 828 000 000 Dinars.
+Ces crédits sont repartis par missions, par missions spéciales et par programmes conformément au tableau « C » annexé à la présente loi.
+
+[chunk 5] Art. 6 - Le montant des crédits d’engagement des dépenses du budget de l’Etat pour l’année 2025 est fixé à 63 000 000 000 Dinars.
+Ces crédits sont répartis par missions, par missions spéciales et par programmes, conformément au tableau « D » annexé à la présente loi.
+
+[chunk 6] Art. 7 - Est autorisée pour l’année 2025 la perception des ressources du trésor d’un montant total de 28 203 000 000 Dinars.
+Ces ressources sont utilisées pour financer le résultat du budget de l’Etat et couvrir les charges de trésor comme suit :
+En Dinars
+Désignations
+Montant
+Ressources des emprunts extérieurs
+6 131 000 000
+Ressources des emprunts intérieurs
+21 872 000 000
+Ressources de trésor
+200 000 000
+Total des sources de financement
+28 203 000 000
+Financement de déficit budgétaire y compris les dons extérieurs, privatisation et confiscation
+9 800 000 000
+Remboursement du principal de la dette intérieure
+9 734 000 000
+Remboursement du principal de la dette extérieure
+8 469 000 000
+Prêts et avances du trésor
+200 000 000
+Total des utilisations
+28 203 000 000
+____________
+(1) Travaux préparatoires :
+
+[chunk 7] 200 000 000
+Total des utilisations
+28 203 000 000
+____________
+(1) Travaux préparatoires :
+Discussion et adoption par l’Assemblée des représentants du peuple dans la séance commune du 2 décembre 2024.
+
+[chunk 8] Art. 8 - Le montant des recettes et des dépenses des établissements publics dont les budgets sont rattachés pour ordre au budget de l’Etat pour l’année 2025 est fixé par missions à 1 438 539 300 Dinars conformément au tableau « E » annexé à la présente loi.
+
+[chunk 9] Art. 9 - L'effectif global du personnel autorisé au titre de l'année 2025 au profit des ministères y compris les services centraux et régionaux et le personnel des établissements publics dont les budgets sont rattachés pour ordre au budget de l'Etat est de 663 757 agents.
+Cet effectif est réparti par missions et par missions spéciales conformément au tableau « F » annexé à la présente loi.
