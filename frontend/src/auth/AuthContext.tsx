@@ -7,14 +7,18 @@ import {
   updateCurrentUser as updateCurrentUserRequest,
 } from "../services/auth.service";
 import type { AuthUser, LoginRequest, LoginResponse, UpdateProfileRequest } from "../models/auth.models";
+import { subscribeSessionExpired } from "../utils/sessionExpiredBus";
 
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
+  sessionExpired: boolean;
+  sessionExpiredMessage: string;
   login: (payload: LoginRequest) => Promise<LoginResponse>;
   logout: () => Promise<void>;
   updateCurrentUser: (payload: UpdateProfileRequest) => Promise<AuthUser>;
   refreshCurrentUser: () => Promise<void>;
+  dismissSessionExpired: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -22,6 +26,8 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState("Session expiree. Veuillez vous reconnecter pour continuer.");
 
   useEffect(() => {
     async function bootstrap() {
@@ -38,14 +44,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void bootstrap();
   }, []);
 
+  useEffect(() => {
+    return subscribeSessionExpired((message) => {
+      setUser(null);
+      setSessionExpiredMessage(message || "Session expiree. Veuillez vous reconnecter pour continuer.");
+      setSessionExpired(true);
+      setLoading(false);
+    });
+  }, []);
+
   const refreshCurrentUser = useCallback(async () => {
     const me = await getCurrentUser();
     setUser(me);
+    setSessionExpired(false);
   }, []);
 
   const login = useCallback(async (payload: LoginRequest) => {
     const result = await loginRequest(payload);
     setUser(result.user);
+    setSessionExpired(false);
     return result;
   }, []);
 
@@ -54,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await logoutRequest();
     } finally {
       setUser(null);
+      setSessionExpired(false);
     }
   }, []);
 
@@ -63,16 +81,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return updated;
   }, []);
 
+  const dismissSessionExpired = useCallback(() => {
+    setSessionExpired(false);
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
       loading,
+      sessionExpired,
+      sessionExpiredMessage,
       login,
       logout,
       updateCurrentUser,
       refreshCurrentUser,
+      dismissSessionExpired,
     }),
-    [user, loading, login, logout, updateCurrentUser, refreshCurrentUser],
+    [
+      user,
+      loading,
+      sessionExpired,
+      sessionExpiredMessage,
+      login,
+      logout,
+      updateCurrentUser,
+      refreshCurrentUser,
+      dismissSessionExpired,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

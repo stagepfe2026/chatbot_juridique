@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import jsPDF from "jspdf";
 import type { SourceFile } from "../../models/chat.models";
@@ -62,13 +62,159 @@ function formatDayLabel(dateString: string): string {
 }
 
 function sanitizeAnswerText(text: string): string {
-  let t = String(text ?? "");
-  t = t.replace(/\bchunk_\d+\b/gi, "");
-  t = t.replace(/\s*:\s*(?=[)\]])/g, "");
-  t = t.replace(/\s+et\s+(?=[)\],;\.])/gi, " ");
-  t = t.replace(/\(\s*\)/g, "");
-  t = t.replace(/\s{2,}/g, " ").trim();
-  return t;
+  const lines = String(text ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\bchunk_\d+\b/gi, "")
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/\s*:\s*(?=[)\]])/g, "")
+        .replace(/\s+et\s+(?=[)\],;\.])/gi, " ")
+        .replace(/\(\s*\)/g, "")
+        .replace(/[ \t]{2,}/g, " ")
+        .trimEnd(),
+    );
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function splitMarkdownRow(line: string): string[] {
+  const normalized = line.trim().replace(/^[-*]\s+/, "").replace(/^\|/, "").replace(/\|$/, "");
+  return normalized.split("|").map((cell) => cell.trim());
+}
+
+function isMarkdownSeparatorLine(line: string): boolean {
+  const normalized = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return normalized.length > 0 && normalized.split("|").every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+}
+
+function isNumericLikeCell(cell: string): boolean {
+  const normalized = cell.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!normalized || normalized === "-") return false;
+  return /\d/.test(normalized) && /(%|dinars?|taux|tranche|,|\.)/.test(normalized);
+}
+
+function getTableCellAlignment(cell: string): string {
+  return isNumericLikeCell(cell) ? "text-right font-medium tabular-nums text-slate-900" : "text-left text-slate-700";
+}
+
+function renderAssistantContent(text: string): ReactNode {
+  const lines = String(text ?? "").replace(/\r\n/g, "\n").split("\n");
+  const blocks: ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = (lines[i] ?? "").trim();
+    if (!line) {
+      i += 1;
+      continue;
+    }
+
+    const nextLine = (lines[i + 1] ?? "").trim();
+    if (line.includes("|") && isMarkdownSeparatorLine(nextLine)) {
+      const tableLines = [line, nextLine];
+      i += 2;
+      while (i < lines.length) {
+        const candidate = (lines[i] ?? "").trim();
+        if (!candidate || !candidate.includes("|")) break;
+        tableLines.push(candidate);
+        i += 1;
+      }
+
+      const header = splitMarkdownRow(tableLines[0]);
+      const rows = tableLines.slice(2).map(splitMarkdownRow).filter((row) => row.some(Boolean));
+
+      blocks.push(
+        <div key={`table-${blocks.length}`} className="my-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2.5">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reponse structuree</div>
+            <div className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200">
+              {rows.length} ligne{rows.length > 1 ? "s" : ""}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-slate-700">
+              <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  {header.map((cell, index) => (
+                    <th
+                      key={`head-${index}`}
+                      className={`border-b border-slate-200 px-3 py-2.5 ${isNumericLikeCell(cell) ? "text-right" : "text-left"}`}
+                    >
+                      {cell}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, rowIndex) => (
+                  <tr key={`row-${rowIndex}`} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/80">
+                    {header.map((_, cellIndex) => {
+                      const value = row[cellIndex] ?? "-";
+                      return (
+                        <td
+                          key={`cell-${rowIndex}-${cellIndex}`}
+                          className={`px-3 py-2.5 align-top leading-5.5 ${getTableCellAlignment(value)}`}
+                        >
+                          {value}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>,
+      );
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const candidate = (lines[i] ?? "").trim();
+        if (!/^[-*]\s+/.test(candidate)) break;
+        items.push(candidate.replace(/^[-*]\s+/, ""));
+        i += 1;
+      }
+
+      blocks.push(
+        <ul key={`list-${blocks.length}`} className="my-2.5 space-y-1.5">
+          {items.map((item, index) => (
+            <li
+              key={`item-${index}`}
+              className="flex gap-3 rounded-lg border-l-2 border-red-400/70 bg-white/80 px-3 py-2 text-slate-700"
+            >
+              <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-red-500/90" aria-hidden="true" />
+              <span className="leading-6 text-slate-700">{item}</span>
+            </li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    const paragraphLines = [line];
+    i += 1;
+    while (i < lines.length) {
+      const candidate = (lines[i] ?? "").trim();
+      const candidateNext = (lines[i + 1] ?? "").trim();
+      if (!candidate) break;
+      if (/^[-*]\s+/.test(candidate)) break;
+      if (candidate.includes("|") && isMarkdownSeparatorLine(candidateNext)) break;
+      paragraphLines.push(candidate);
+      i += 1;
+    }
+
+    blocks.push(
+      <p key={`paragraph-${blocks.length}`} className="leading-6 text-slate-700">
+        {paragraphLines.join(" ")}
+      </p>,
+    );
+  }
+
+  return <Fragment>{blocks}</Fragment>;
 }
 
 function fromConversationMessages(messages: ConversationMessage[]): ChatMessage[] {
@@ -100,27 +246,181 @@ function buildPdfFilename(question: string): string {
   return `${base}-${new Date().toISOString().slice(0, 10)}.pdf`;
 }
 
+type PdfAnswerBlock =
+  | { type: "paragraph"; text: string }
+  | { type: "list"; items: string[] }
+  | { type: "table"; header: string[]; rows: string[][] };
+
+function parseAnswerBlocks(text: string): PdfAnswerBlock[] {
+  const lines = String(text ?? "").replace(/\r\n/g, "\n").split("\n");
+  const blocks: PdfAnswerBlock[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = (lines[i] ?? "").trim();
+    if (!line) {
+      i += 1;
+      continue;
+    }
+
+    const nextLine = (lines[i + 1] ?? "").trim();
+    if (line.includes("|") && isMarkdownSeparatorLine(nextLine)) {
+      const tableLines = [line, nextLine];
+      i += 2;
+      while (i < lines.length) {
+        const candidate = (lines[i] ?? "").trim();
+        if (!candidate || !candidate.includes("|")) break;
+        tableLines.push(candidate);
+        i += 1;
+      }
+
+      const header = splitMarkdownRow(tableLines[0]);
+      const rows = tableLines.slice(2).map(splitMarkdownRow).filter((row) => row.some(Boolean));
+      blocks.push({ type: "table", header, rows });
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const candidate = (lines[i] ?? "").trim();
+        if (!/^[-*]\s+/.test(candidate)) break;
+        items.push(candidate.replace(/^[-*]\s+/, ""));
+        i += 1;
+      }
+      blocks.push({ type: "list", items });
+      continue;
+    }
+
+    const paragraphLines = [line];
+    i += 1;
+    while (i < lines.length) {
+      const candidate = (lines[i] ?? "").trim();
+      const candidateNext = (lines[i + 1] ?? "").trim();
+      if (!candidate) break;
+      if (/^[-*]\s+/.test(candidate)) break;
+      if (candidate.includes("|") && isMarkdownSeparatorLine(candidateNext)) break;
+      paragraphLines.push(candidate);
+      i += 1;
+    }
+
+    blocks.push({ type: "paragraph", text: paragraphLines.join(" ") });
+  }
+
+  return blocks;
+}
+
 function downloadAnswerPdf(question: string, answer: string, sourceFile?: SourceFile | null): void {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 16;
+  const contentWidth = pageWidth - margin * 2;
+  const blocks = parseAnswerBlocks(answer || "");
   let cursorY = 20;
 
-  const writeParagraph = (text: string, fontSize = 11) => {
+  const ensureSpace = (height: number) => {
+    if (cursorY + height <= pageHeight - margin) return;
+    doc.addPage();
+    cursorY = margin;
+  };
+
+  const writeParagraph = (text: string, fontSize = 11, color: [number, number, number] = [15, 23, 42]) => {
     doc.setFontSize(fontSize);
-    const lines = doc.splitTextToSize(text, pageWidth - margin * 2);
-    const estimatedHeight = lines.length * (fontSize * 0.45) + 4;
-    if (cursorY + estimatedHeight > pageHeight - margin) {
-      doc.addPage();
-      cursorY = margin;
-    }
+    doc.setTextColor(color[0], color[1], color[2]);
+    const lines = doc.splitTextToSize(text, contentWidth);
+    const lineHeight = Math.max(5, fontSize * 0.42 + 1.2);
+    const blockHeight = lines.length * lineHeight + 1;
+    ensureSpace(blockHeight);
     doc.text(lines, margin, cursorY);
-    cursorY += estimatedHeight;
+    cursorY += blockHeight;
+  };
+
+  const writeSectionLabel = (label: string) => {
+    ensureSpace(10);
+    doc.setFontSize(12);
+    doc.setTextColor(185, 28, 28);
+    doc.text(label, margin, cursorY);
+    cursorY += 7;
+  };
+
+  const drawList = (items: string[]) => {
+    items.forEach((item) => {
+      const textX = margin + 8;
+      const maxWidth = contentWidth - 10;
+      const lines = doc.splitTextToSize(item, maxWidth);
+      const lineHeight = 5.5;
+      const itemHeight = Math.max(10, lines.length * lineHeight + 4);
+      ensureSpace(itemHeight);
+
+      doc.setDrawColor(248, 113, 113);
+      doc.setLineWidth(0.5);
+      doc.line(margin + 1.5, cursorY + 1, margin + 1.5, cursorY + itemHeight - 1);
+
+      doc.setFillColor(220, 38, 38);
+      doc.circle(margin + 4, cursorY + 3.5, 1.1, "F");
+
+      doc.setFontSize(11);
+      doc.setTextColor(51, 65, 85);
+      doc.text(lines, textX, cursorY + 5);
+      cursorY += itemHeight;
+    });
+  };
+
+  const drawTable = (header: string[], rows: string[][]) => {
+    if (!header.length) return;
+
+    const safeRows = rows.map((row) => header.map((_, index) => row[index] ?? "-"));
+    const colWidths = header.map((_, index) => {
+      if (header.length === 3 && index === 0) return contentWidth * 0.42;
+      if (header.length === 3 && index > 0) return contentWidth * 0.29;
+      return contentWidth / header.length;
+    });
+
+    const drawHeader = () => {
+      ensureSpace(12);
+      let x = margin;
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.setTextColor(71, 85, 105);
+      doc.setFontSize(10);
+      header.forEach((cell, index) => {
+        const width = colWidths[index];
+        doc.rect(x, cursorY, width, 10, "FD");
+        const cellLines = doc.splitTextToSize(cell, width - 4);
+        doc.text(cellLines, x + 2, cursorY + 4.5);
+        x += width;
+      });
+      cursorY += 10;
+    };
+
+    drawHeader();
+
+    safeRows.forEach((row) => {
+      const wrapped = row.map((cell, index) => doc.splitTextToSize(cell, colWidths[index] - 4));
+      const rowHeight = Math.max(...wrapped.map((lines) => lines.length * 4.8 + 4), 10);
+      ensureSpace(rowHeight + 1);
+      if (cursorY === margin) {
+        drawHeader();
+      }
+
+      let x = margin;
+      wrapped.forEach((cellLines, index) => {
+        const width = colWidths[index];
+        doc.setDrawColor(226, 232, 240);
+        doc.setFillColor(255, 255, 255);
+        doc.rect(x, cursorY, width, rowHeight, "FD");
+        doc.setFontSize(10.5);
+        doc.setTextColor(index === 0 ? 15 : 51, index === 0 ? 23 : 65, index === 0 ? 42 : 85);
+        doc.text(cellLines, x + 2, cursorY + 4.5);
+        x += width;
+      });
+      cursorY += rowHeight;
+    });
   };
 
   doc.setFillColor(185, 28, 28);
-  doc.roundedRect(margin, 10, pageWidth - margin * 2, 18, 4, 4, "F");
+  doc.roundedRect(margin, 10, contentWidth, 18, 4, 4, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.text("Assistant Juridique - Reponse exportee", margin + 4, 21);
@@ -134,29 +434,34 @@ function downloadAnswerPdf(question: string, answer: string, sourceFile?: Source
   );
 
   cursorY = 46;
-  doc.setFontSize(12);
-  doc.setTextColor(185, 28, 28);
-  doc.text("Question", margin, cursorY);
-  cursorY += 7;
-  doc.setTextColor(15, 23, 42);
+  writeSectionLabel("Question");
   writeParagraph(question || "Question non disponible.");
 
   cursorY += 2;
-  doc.setFontSize(12);
-  doc.setTextColor(185, 28, 28);
-  doc.text("Reponse", margin, cursorY);
-  cursorY += 7;
-  doc.setTextColor(15, 23, 42);
-  writeParagraph(answer || "Reponse non disponible.");
+  writeSectionLabel("Reponse");
+  if (!blocks.length) {
+    writeParagraph(answer || "Reponse non disponible.");
+  } else {
+    blocks.forEach((block) => {
+      if (block.type === "paragraph") {
+        writeParagraph(block.text);
+        cursorY += 1.5;
+        return;
+      }
+      if (block.type === "list") {
+        drawList(block.items);
+        cursorY += 1.5;
+        return;
+      }
+      drawTable(block.header, block.rows);
+      cursorY += 2;
+    });
+  }
 
   if (sourceFile?.filename) {
     cursorY += 2;
-    doc.setFontSize(12);
-    doc.setTextColor(185, 28, 28);
-    doc.text("Document source", margin, cursorY);
-    cursorY += 7;
-    doc.setTextColor(51, 65, 85);
-    writeParagraph(sourceFile.filename, 10);
+    writeSectionLabel("Document source");
+    writeParagraph(sourceFile.filename, 10, [51, 65, 85]);
   }
 
   doc.save(buildPdfFilename(question));
@@ -544,7 +849,7 @@ export default function AskQuestionPage() {
                 <div className={`max-w-2xl rounded-xl px-3 py-2 text-sm ${
                   message.role === "user" ? "bg-red-600 text-white shadow-sm" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-sm"
                 }`}>
-                  <div className="whitespace-pre-wrap">{message.text}</div>
+                  {message.role === "assistant" ? renderAssistantContent(message.text) : <div className="whitespace-pre-wrap">{message.text}</div>}
                   {message.role === "assistant" && (
                     <button
                       type="button"

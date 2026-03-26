@@ -1,6 +1,7 @@
 import axios from "axios";
 import type { AxiosError } from "axios";
 import { publishSnackbar } from "../utils/snackbarBus";
+import { publishSessionExpired } from "../utils/sessionExpiredBus";
 
 function extractDetail(data: unknown): string | null {
   if (!data) return null;
@@ -36,9 +37,17 @@ function notifyFromAxiosError(error: AxiosError): void {
   }
 
   if (status === 401 || status === 403) {
+    const requestUrl = String(error.config?.url || "");
+    const isLoginRequest = requestUrl.includes("/auth/login");
+
+    if (!isLoginRequest) {
+      publishSessionExpired(detail || "Session expiree ou acces refuse. Veuillez vous reconnecter.");
+      return;
+    }
+
     publishSnackbar({
       variant: "warning",
-      message: detail || "Session expiree ou acces refuse. Veuillez vous reconnecter.",
+      message: detail || "Acces refuse. Veuillez verifier vos identifiants.",
     });
     return;
   }

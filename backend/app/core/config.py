@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     retriever_same_document_penalty: float = 0.08
     retriever_use_semantic_rerank: bool = False
     answer_review_enabled: bool = False
-    llm_request_timeout_seconds: float = 140.0
+    llm_request_timeout_seconds: float = 120.0
     llm_retry_with_reduced_context: bool = True
     llm_retry_max_sources: int = 2
     llm_retry_excerpt_chars: int = 900

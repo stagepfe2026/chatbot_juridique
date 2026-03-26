@@ -10,6 +10,8 @@ import re
 
 import threading
 
+import unicodedata
+
 from typing import Any
 
 
@@ -1545,7 +1547,7 @@ def _extract_measure_signal_tokens(measure: str, question_tokens: set[str], toke
 
             continue
 
-        if token_counts.get(token, 0) == 1 or token in {"revenus", "taxe", "vehicules", "v?hicules", "transport", "exoneres", "exoneres", "exoneres", "exoneration", "duree", "dur?e"}:
+        if token_counts.get(token, 0) == 1 or token in {"revenus", "taxe", "vehicules", "vehicules", "transport", "exoneres", "exoneres", "exoneres", "exoneration", "duree", "duree"}:
 
             if token not in signals:
 
@@ -1699,6 +1701,172 @@ def _build_coverage_retry_requirements(uncovered: list[dict[str, object]]) -> st
 
 
 
+def _normalize_ascii_text(value: str) -> str:
+
+    decomposed = unicodedata.normalize("NFD", str(value or ""))
+
+    return "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+
+
+
+def _is_bareme_table_question(user_question: str) -> bool:
+
+    normalized = _normalize_ascii_text(_normalize_retrieval_text(user_question))
+
+    has_tax_schedule_topic = any(token in normalized for token in ("bareme", "tranche", "tranches", "taux"))
+
+    asks_for_structured_render = any(token in normalized for token in ("tableau", "structuree", "structure", "presente", "indiquant"))
+
+    return has_tax_schedule_topic and asks_for_structured_render
+
+
+
+def _format_bareme_tranche(raw_tranche: str) -> str:
+
+    tranche = re.sub(r"\s+", " ", str(raw_tranche or "").strip())
+
+    match = re.match(r"^(?P<start>\d[\d .]*(?:,\d+)?)\s+a\s+(?P<end>\d[\d .]*(?:,\d+)?)\s+dinars?$", tranche, flags=re.IGNORECASE)
+
+    if match:
+
+        return f"{match.group('start')} a {match.group('end')} Dinars"
+
+    match = re.match(r"^0\s+a\s+(?P<end>\d[\d .]*(?:,\d+)?)\s+dinars?$", tranche, flags=re.IGNORECASE)
+
+    if match:
+
+        return f"0 a {match.group('end')} Dinars"
+
+    match = re.match(r"^au[- ]?dela\s+de\s+(?P<start>\d[\d .]*(?:,\d+)?)\s+dinars?$", tranche, flags=re.IGNORECASE)
+
+    if match:
+
+        return f"Au-dela de {match.group('start')} Dinars"
+
+    tranche = tranche.replace(" a ", " a ")
+
+    tranche = tranche.replace(" dinars", " Dinars")
+
+    return tranche[:1].upper() + tranche[1:] if tranche else tranche
+
+
+
+def _extract_bareme_rows(rag_context: str) -> list[dict[str, str]]:
+
+    ascii_text = _normalize_ascii_text(str(rag_context or "")).replace("\r", " ").replace("\n", " ")
+
+    flattened = re.sub(r"\s+", " ", ascii_text)
+
+    pattern = re.compile(
+
+        r"(?P<tranche>(?:0\s+a\s+\d[\d .]*(?:,\d+)?|\d[\d .]*(?:,\d+)?\s+a\s+\d[\d .]*(?:,\d+)?|au[- ]?dela\s+de\s+\d[\d .]*(?:,\d+)?)\s+dinars?)\s+(?P<taux>\d{1,2}(?:,\d+)?%)\s+(?P<effectif>\d{1,2}(?:,\d+)?%|-)"
+
+        , flags=re.IGNORECASE,
+
+    )
+
+    matches = [
+
+        {
+
+            "tranche": _format_bareme_tranche(match.group("tranche")),
+
+            "taux": match.group("taux"),
+
+            "effectif": match.group("effectif"),
+
+        }
+
+        for match in pattern.finditer(flattened)
+
+    ]
+
+    if not matches:
+
+        return []
+
+    groups: list[list[dict[str, str]]] = []
+
+    current: list[dict[str, str]] = []
+
+    for row in matches:
+
+        starts_new_schedule = row["tranche"].lower().startswith("0 a ") and any(existing["tranche"].lower().startswith("0 a ") for existing in current)
+
+        if starts_new_schedule and current:
+
+            groups.append(current)
+
+            current = []
+
+        current.append(row)
+
+    if current:
+
+        groups.append(current)
+
+    selected_group = max(enumerate(groups), key=lambda item: (len(item[1]), item[0]))[1]
+
+    deduped: dict[str, dict[str, str]] = {}
+
+    for row in selected_group:
+
+        deduped[row["tranche"]] = row
+
+    return list(deduped.values())
+
+
+
+def _extract_bareme_application_date(rag_context: str) -> str:
+
+    ascii_text = _normalize_ascii_text(str(rag_context or ""))
+
+    if re.search(r"revenus\s+realises\s+a\s+partir\s+du\s+1er\s+janvier\s+2025", ascii_text, flags=re.IGNORECASE):
+
+        return "Date d'application : les nouvelles dispositions s'appliquent aux revenus realises a partir du 1er janvier 2025."
+
+    return ""
+
+
+
+def _build_bareme_table_fallback(rag_context: str, user_question: str) -> str:
+
+    if not _is_bareme_table_question(user_question) or not _rag_context_has_table_like_content(rag_context):
+
+        return ""
+
+    rows = _extract_bareme_rows(rag_context)
+
+    if len(rows) < 2:
+
+        return ""
+
+    lines = [
+
+        "Nouveau bareme de l'impot sur le revenu :",
+
+        "",
+
+        "| Tranche | Taux | Taux effectif a la limite superieure |",
+
+        "| --- | ---: | ---: |",
+
+    ]
+
+    for row in rows:
+
+        lines.append(f"| {row['tranche']} | {row['taux']} | {row['effectif']} |")
+
+    application_date = _extract_bareme_application_date(rag_context)
+
+    if application_date:
+
+        lines.extend(["", application_date])
+
+    return "\n".join(lines)
+
+
+
 def _build_structured_measure_fallback(rag_context: str, user_question: str) -> str:
 
     specs = _extract_structured_measure_specs(rag_context, user_question)
@@ -1733,6 +1901,31 @@ def _rag_context_has_multiple_structured_measures(rag_context: str) -> bool:
     numbered = len(re.findall(r"(?m)\b\d+\)", text))
     bullets = len(re.findall(r"(?m)^\s*[-*]\s+", text))
     return numbered >= 2 or bullets >= 2
+
+
+def _rag_context_has_table_like_content(rag_context: str) -> bool:
+
+    normalized = _normalize_retrieval_text(rag_context)
+
+    return (
+
+        ("tranches" in normalized and "taux" in normalized)
+
+        or len(re.findall(r"\b\d+[.,]?\d*%", normalized)) >= 3
+
+        or len(re.findall(r"\b\d{1,3}(?:[ .]\d{3})*(?:,\d+)?\s+dinars?", normalized)) >= 4
+
+    )
+
+
+
+def _rag_context_has_bullet_like_content(rag_context: str) -> bool:
+
+    if _rag_context_has_multiple_structured_measures(rag_context):
+
+        return True
+
+    return len(re.findall(r"(?m)^\s*[-*]\s+", str(rag_context or ""))) >= 2
 
 
 def _build_answer_requirements(user_question: str, rag_context: str) -> str:
@@ -1782,6 +1975,34 @@ def _build_answer_requirements(user_question: str, rag_context: str) -> str:
                 "- Organiser la reponse en comparaison explicite par criteres communs.",
 
                 "- Pour chaque difference, indiquer clairement quel regime ou quel cas est concerne.",
+
+            ]
+
+        )
+
+    if _rag_context_has_table_like_content(rag_context):
+
+        requirements.extend(
+
+            [
+
+                "- Si les extraits contiennent un bareme, des tranches, des taux ou un tableau, restituer la reponse sous forme de tableau markdown simple ou, a defaut, de liste ligne par ligne.",
+
+                "- Conserver une ligne distincte par tranche, taux ou categorie importante au lieu d'une phrase generale.",
+
+            ]
+
+        )
+
+    elif _rag_context_has_bullet_like_content(rag_context) and _is_list_seeking_question(user_question):
+
+        requirements.extend(
+
+            [
+
+                "- Restituer la reponse sous forme de puces, avec une puce par condition, avantage, exclusion ou mesure distincte.",
+
+                "- Chaque puce doit contenir une information complete et autonome.",
 
             ]
 
@@ -1935,6 +2156,14 @@ def _generate_answer(*, summary: str, last_messages: list[dict[str, str]], rag_c
 
 
 
+    bareme_fallback = _build_bareme_table_fallback(rag_context, user_question)
+
+    if bareme_fallback:
+
+        return bareme_fallback
+
+
+
     answer = ""
 
     try:
@@ -1965,35 +2194,7 @@ def _generate_answer(*, summary: str, last_messages: list[dict[str, str]], rag_c
 
             return answer
 
-        logger.info("Coverage retry triggered for %s uncovered structured measures", len(uncovered))
-
-        try:
-
-            refined = _generate_answer_once(
-
-                summary="",
-
-                last_messages=[],
-
-                rag_context=rag_context,
-
-                user_question=user_question,
-
-                extra_requirements=_build_coverage_retry_requirements(uncovered),
-
-            )
-
-            if not _find_uncovered_structured_measures(refined, rag_context, user_question):
-
-                return refined
-
-            if refined and refined != NO_INFO_ANSWER_FR:
-
-                answer = refined
-
-        except LLMTimeoutError:
-
-            pass
+        logger.info("Coverage fallback triggered for %s uncovered structured measures", len(uncovered))
 
         fallback = _build_structured_measure_fallback(rag_context, user_question)
 
@@ -2029,33 +2230,7 @@ def _generate_answer(*, summary: str, last_messages: list[dict[str, str]], rag_c
 
         return answer
 
-    try:
-
-        refined = _generate_answer_once(
-
-            summary="",
-
-            last_messages=[],
-
-            rag_context=reduced_context,
-
-            user_question=user_question,
-
-            extra_requirements=_build_coverage_retry_requirements(uncovered),
-
-        )
-
-        if not _find_uncovered_structured_measures(refined, reduced_context, user_question):
-
-            return refined
-
-        if refined and refined != NO_INFO_ANSWER_FR:
-
-            answer = refined
-
-    except LLMTimeoutError:
-
-        pass
+    logger.info("Coverage fallback triggered after reduced-context generation for %s uncovered structured measures", len(uncovered))
 
     fallback = _build_structured_measure_fallback(reduced_context, user_question)
 
