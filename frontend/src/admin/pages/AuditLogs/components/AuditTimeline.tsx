@@ -10,7 +10,6 @@ export function AuditTimeline({ logs }: AuditTimelineProps) {
     <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-sm">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-slate-900">Activite recente</h2>
-        <p className="text-xs text-slate-500">Derniers evenements surveilles</p>
       </div>
 
       <div className="relative pl-3">

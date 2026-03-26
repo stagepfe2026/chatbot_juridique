@@ -442,12 +442,9 @@ export default function AskQuestionPage() {
             {visibleHistory.map((item) => (
               <div
                 key={item.id}
-                className={
-                  'group relative rounded-lg border px-3 py-2 text-sm ' +
-                  (activeHistoryId === item.id ? 'border-red-200 bg-red-50' : 'border-transparent hover:bg-slate-50')
-                }
+                className='group relative rounded-lg px-3 py-2 text-sm transition-colors hover:bg-slate-50'
               >
-                <button className='w-full pr-8 text-left' onClick={() => void openHistoryItem(item)}>
+                <button className='block w-full appearance-none border-0 bg-transparent p-0 pr-8 text-left shadow-none outline-none' onClick={() => void openHistoryItem(item)}>
                   <div className='truncate font-medium text-slate-800'>{item.title}</div>
                   <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt)}</div>
                 </button>
@@ -506,7 +503,7 @@ export default function AskQuestionPage() {
       <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
-            <div className="text-sm font-semibold text-slate-900">Assistant Juridique IA</div>
+            <div className="text-sm font-semibold text-red-900">Assistant Juridique IA</div>
             <div className="text-xs text-slate-500">Posez vos questions juridiques</div>
           </div>
 
@@ -723,3 +720,8 @@ export default function AskQuestionPage() {
     </div>
   );
 }
+
+
+
+
+

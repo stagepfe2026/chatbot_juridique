@@ -8,6 +8,7 @@ class ClaimModel:
     user_id: str
     user_email: str
     category: str
+    priority: str
     subject: str
     description: str
     status: str
@@ -27,6 +28,7 @@ class ClaimModel:
         user_id: str,
         user_email: str,
         category: str,
+        priority: str,
         subject: str,
         description: str,
         attachments: list[dict[str, Any]],
@@ -36,6 +38,7 @@ class ClaimModel:
             user_id=user_id,
             user_email=user_email.strip().lower(),
             category=category.strip(),
+            priority=priority.strip() or "NORMAL",
             subject=subject.strip(),
             description=description.strip(),
             status="SUBMITTED",
@@ -58,6 +61,7 @@ class ClaimModel:
             user_id=str(raw.get("userId", "")),
             user_email=str(raw.get("userEmail", "")),
             category=str(raw.get("category", "OTHER")),
+            priority=str(raw.get("priority", "NORMAL")),
             subject=str(raw.get("subject", "")),
             description=str(raw.get("description", "")),
             status=str(raw.get("status", "SUBMITTED")),
@@ -75,6 +79,7 @@ class ClaimModel:
             "userId": self.user_id,
             "userEmail": self.user_email,
             "category": self.category,
+            "priority": self.priority,
             "subject": self.subject,
             "description": self.description,
             "status": self.status,

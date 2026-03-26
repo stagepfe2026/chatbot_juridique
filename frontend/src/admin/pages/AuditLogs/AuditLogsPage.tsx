@@ -15,6 +15,7 @@ import { AuditStats } from "./components/AuditStats";
 import { AuditTimeline } from "./components/AuditTimeline";
 
 const PAGE_SIZE = 6;
+const AUDIT_LOG_FETCH_LIMIT = 1000;
 
 function toLocalDateInputValue(date: Date): string {
   const year = date.getFullYear();
@@ -128,7 +129,7 @@ export default function AuditLogsPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await listAuditLogs();
+      const data = await listAuditLogs(AUDIT_LOG_FETCH_LIMIT);
       setLogs(data);
     } catch (err: unknown) {
       const message =
@@ -279,9 +280,6 @@ export default function AuditLogsPage() {
               <h2 className="text-lg font-bold tracking-tight text-slate-950">Liste des activites</h2>
               <p className="text-sm text-slate-500">{filteredLogs.length} log(s) correspondant aux filtres actifs</p>
             </div>
-            <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600">
-              Donnees reelles issues de MongoDB
-            </div>
           </div>
 
           {visibleLogs.length > 0 ? (
@@ -319,3 +317,6 @@ export default function AuditLogsPage() {
     </div>
   );
 }
+
+
+

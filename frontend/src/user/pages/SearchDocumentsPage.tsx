@@ -271,7 +271,7 @@ export default function SearchDocumentsPage() {
 
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <div className="text-sm font-bold text-slate-900">Contenu</div>
-                <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-600">{selectedDoc.excerpt || selectedDoc.description || ""}</p>
+                <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-600">{highlightText(selectedDoc.excerpt || selectedDoc.description || "", terms)}</p>
               </div>
 
               <a

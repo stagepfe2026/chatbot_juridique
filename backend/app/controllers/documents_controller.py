@@ -8,7 +8,7 @@ from app.services.documents_service import (
     get_document_points,
     get_qdrant_health_status,
     get_qdrant_stats,
-    import_document_and_index,
+    import_document_and_schedule_index,
     index_non_indexed_documents,
     index_single_document,
     list_active_documents,
@@ -39,7 +39,7 @@ def import_document_controller(
 
     realized_dt = datetime(realized_date.year, realized_date.month, realized_date.day, tzinfo=timezone.utc)
 
-    return import_document_and_index(
+    return import_document_and_schedule_index(
         file=file,
         title=title,
         category=category,

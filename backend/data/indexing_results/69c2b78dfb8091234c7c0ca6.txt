@@ -1,0 +1,400 @@
+document_id: 69c2b78dfb8091234c7c0ca6
+title: dddd
+status: INDEXED
+indexed_points: 30
+chunks_total: 30
+chunks_raw_total: 30
+error: 
+
+=== CHUNKS PREVIEW (first 10) ===
+[chunk 0] ministere
+- journal activite
+date export : 23 mars 2026 13:29 nombre total ligne : 200 document audit exporter archivage consultation officiel .
+date
+utilisateur
+action
+ressource statut niveau ip 23 mars 2026 12:28:26 hatem_abidi@cimf.local login
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 19:05:27 noah_ben_othmen@cimf.local logout
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 19:05:24 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:22 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:20
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:18 noah_ben_othmen@cimf.local
+view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 19:05:18 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+
+[chunk 1] view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 19:05:18 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:18 noah_ben_othmen@cimf.local
+view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 19:05:17 noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 19:05:17 noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 19:05:17
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:16 noah_ben_othmen@cimf.local view_favorite
+favorite
+-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:16 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:16 noah_ben_othmen@cimf.local view_favorite
+favorite
+-
+document
+succe
+
+[chunk 2] favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:05:16 noah_ben_othmen@cimf.local view_favorite
+favorite
+-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:04:53
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:04:49 noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 19:04:49 noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1
+date
+utilisateur
+action
+ressource statut niveau ip 22 mars 2026 18:58:02 noah_ben_othmen@cimf.local create_claim
+69c03bba24394a94286d1543 succe
+info 127.0.0.1 22 mars 2026 18:57:55 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:57:52
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:57:52
+noah_ben_othmen@cimf.local count_favorites
+
+[chunk 3] noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:57:52
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:57:52 noah_ben_othmen@cimf.local
+login
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 18:57:50 session logout
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 18:35:32
+view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:35:32
+view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:35:32 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:31:17
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:31:06 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:30:42
+
+[chunk 4] succe
+info 127.0.0.1 22 mars 2026 18:31:06 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:30:42
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:30:42
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:30:42 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:30:40 noah_ben_othmen@cimf.local
+archive_conversation 69c02edc451201d3e5986c12
+succe
+info 127.0.0.1 22 mars 2026 18:30:39 noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:30:39 noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:30:39 noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+
+[chunk 5] conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:30:39 noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:28:16 noah_ben_othmen@cimf.local
+restore_conversation 69c02edc451201d3e5986c12
+succe
+info 127.0.0.1 22 mars 2026 18:28:10
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:28:10
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1
+date
+utilisateur
+action
+ressource statut niveau ip 22 mars 2026 18:28:10
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:28:08 noah_ben_othmen@cimf.local
+archive_conversation 69c02edc451201d3e5986c12
+succe
+info 127.0.0.1 22 mars 2026 18:28:07 noah_ben_othmen@cimf.local
+view_conversatier
+conversation
+-
+list succe
+
+[chunk 6] succe
+info 127.0.0.1 22 mars 2026 18:28:07 noah_ben_othmen@cimf.local
+view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:28:07 noah_ben_othmen@cimf.local
+view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:28:07 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:27:50
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:27:50
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:27:50
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:23:20
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:23:18 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+
+[chunk 7] favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:23:18 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:23:18 noah_ben_othmen@cimf.local count_favorite
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:23:18 noah_ben_othmen@cimf.local login
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 18:23:10 noah_ben_othmen@cimf.local logout
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 18:22:38
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:38
+noah_ben_othmen@cimf.local view_favorite
+favorite
+-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:37
+noah_ben_othmen@cimf.local view_favorite
+favorite
+-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:37
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:36
+
+[chunk 8] succe
+info 127.0.0.1 22 mars 2026 18:22:37
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:36
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:22:36
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:36
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:22:36
+noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1
+date
+utilisateur
+action
+ressource statut niveau ip 22 mars 2026 18:22:35 noah_ben_othmen@cimf.local
+view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026 18:22:35
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:34
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+
+[chunk 9] favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:34
+noah_ben_othmen@cimf.local count_favorites
+favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026
+18:22:31 noah_ben_othmen@cimf.local count_favorite favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026
+18:22:31 noah_ben_othmen@cimf.local count_favorite favorite-
+document
+succe
+info 127.0.0.1 22 mars 2026 18:22:31
+noah_ben_othmen@cimf.local login
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 18:19:02 session logout
+portail administration
+succe
+info 127.0.0.1 22 mars 2026 18:19:02 session logout
+portail administration
+succe
+info 127.0.0.1 22 mars 2026
+18:15:35 noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026
+18:15:35 noah_ben_othmen@cimf.local view_conversatier
+conversation
+-
+list succe
+info 127.0.0.1 22 mars 2026

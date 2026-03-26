@@ -45,7 +45,6 @@ export function AuditLogDrawer({ log, open, onClose }: AuditLogDrawerProps) {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red-600">Inspection</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Details du log</h2>
-            <p className="mt-1 text-sm text-slate-500">Consultation sans perte de contexte</p>
           </div>
 
           <button

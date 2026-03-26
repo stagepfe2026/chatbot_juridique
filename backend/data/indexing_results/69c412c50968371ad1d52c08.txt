@@ -1,0 +1,13 @@
+document_id: 69c412c50968371ad1d52c08
+title: bonjour 2026 03 22
+status: INDEXED
+indexed_points: 1
+chunks_total: 1
+chunks_raw_total: 1
+error: 
+
+=== CHUNKS PREVIEW (first 10) ===
+[chunk 0] assister juridique
+- reponse exportee genere 22 mars 2026 19:03 question
+reponse bonjour .
+aider question juridique basee document .

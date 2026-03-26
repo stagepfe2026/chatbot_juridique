@@ -31,6 +31,7 @@ export default function UserLayout() {
   const location = useLocation();
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [claimUnreadCount, setClaimUnreadCount] = useState(0);
+  const isChatPage = location.pathname.startsWith("/user/chat");
 
   async function onLogout() {
     await logout();
@@ -81,11 +82,11 @@ export default function UserLayout() {
   }, []);
 
   return (
-    <div className={isDark ? "min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.18),_transparent_38%),linear-gradient(180deg,_#0f172a,_#111827)] text-slate-100" : "min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.12),_transparent_35%),linear-gradient(180deg,_#fff8f8,_#f8fafc)] text-slate-900"}>
+    <div className={isDark ? "flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.18),_transparent_38%),linear-gradient(180deg,_#0f172a,_#111827)] text-slate-100" : "flex min-h-screen flex-col bg-[#f8f4f3] text-slate-900"}>
       <header className={isDark ? "sticky top-0 z-40 border-b border-slate-700/80 bg-slate-900/85 backdrop-blur-sm" : "sticky top-0 z-40 border-b border-white/50 bg-white/85 backdrop-blur-sm"}>
         <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-500 text-xl font-black text-white shadow-[0_8px_16px_rgba(239,68,68,0.25)]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#DA3D20] text-xl font-black text-white">
               AJ
             </div>
             <div className="min-w-0">
@@ -254,7 +255,7 @@ export default function UserLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1400px] px-4 py-4 lg:px-6">
+      <main className={isChatPage ? "w-full flex-1 px-3 py-3 lg:px-4" : "mx-auto w-full max-w-[1400px] px-4 py-4 lg:px-6"}>
         <Outlet />
       </main>
     </div>

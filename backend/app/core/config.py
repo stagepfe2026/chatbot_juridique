@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     qdrant_api_key: str | None = None
     qdrant_collection_name: str = "juridique_docs"
 
-    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_model: str = "intfloat/multilingual-e5-large"
     spacy_model: str = "fr_core_news_sm"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"

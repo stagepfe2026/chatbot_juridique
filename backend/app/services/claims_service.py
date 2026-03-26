@@ -7,6 +7,7 @@ from app.schemas import (
     ClaimCategory,
     ClaimCreateRequest,
     ClaimOut,
+    ClaimPriority,
     ClaimReplyRequest,
     ClaimStatus,
 )
@@ -20,12 +21,14 @@ def ensure_claim_indexes() -> None:
 
 def _to_claim_out(saved: ClaimModel) -> ClaimOut:
     category = ClaimCategory(saved.category) if saved.category in ClaimCategory._value2member_map_ else ClaimCategory.OTHER
+    priority = ClaimPriority(saved.priority) if saved.priority in ClaimPriority._value2member_map_ else ClaimPriority.NORMAL
     status = ClaimStatus(saved.status) if saved.status in ClaimStatus._value2member_map_ else ClaimStatus.SUBMITTED
     return ClaimOut(
         id=saved.id or "",
         userId=saved.user_id,
         userEmail=saved.user_email,
         category=category,
+        priority=priority,
         subject=saved.subject,
         description=saved.description,
         status=status,
@@ -52,6 +55,7 @@ def create_claim_for_user(*, user_id: str, user_email: str, payload: ClaimCreate
         user_id=user_id,
         user_email=user_email,
         category=payload.category.value,
+        priority=payload.priority.value,
         subject=payload.subject,
         description=payload.description,
         attachments=[

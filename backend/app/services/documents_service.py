@@ -1,4 +1,5 @@
 import re
+import threading
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -128,6 +129,70 @@ def import_document_and_index(
             chunksCount=0,
             error=str(exc),
         )
+
+
+def _index_document_async(document_id: str) -> None:
+    try:
+        index_document_by_id(document_id)
+    except Exception:
+        # The indexing service already stores FAILED status and error details.
+        return
+
+
+def import_document_and_schedule_index(
+    *,
+    file: UploadFile,
+    title: str,
+    category: DocumentCategory,
+    description: str = "",
+    realized_at: datetime | None = None,
+) -> ImportDocumentResponse:
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nom de fichier manquant.")
+    if not title.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le titre est obligatoire.")
+    if realized_at is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Date de realisation obligatoire.")
+
+    validate_document_extension(file.filename)
+    settings.uploads_path.mkdir(parents=True, exist_ok=True)
+    safe_name = f"{uuid4().hex}_{Path(file.filename).name}"
+    destination = settings.uploads_path / safe_name
+    payload = file.file.read()
+    destination.write_bytes(payload)
+
+    existing_doc = _documents_repo.find_active_by_title_and_category(title=title, category=category.value)
+    if existing_doc and existing_doc.id:
+        document_id = existing_doc.id
+        _documents_repo.update_document_import_payload(
+            document_id,
+            file_path=str(destination),
+            file_size=len(payload),
+            file_type=file.content_type or "application/octet-stream",
+            description=description,
+            realized_at=realized_at,
+        )
+    else:
+        model = DocumentModel.new_processing(
+            title=title,
+            category=category.value,
+            description=description,
+            realized_at=realized_at,
+            file_path=str(destination),
+            file_size=len(payload),
+            file_type=file.content_type or "application/octet-stream",
+        )
+        document_id = _documents_repo.create_document(model)
+
+    threading.Thread(target=_index_document_async, args=(document_id,), daemon=True).start()
+
+    return ImportDocumentResponse(
+        documentId=document_id,
+        filename=file.filename,
+        status=DocumentStatus.PROCESSING,
+        chunksCount=0,
+        error=None,
+    )
 
 
 def delete_document_permanently(document_id: str) -> None:

@@ -39,19 +39,10 @@ export function AuditFilters({
   onReset,
 }: AuditFiltersProps) {
   return (
-    <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-sm">
+    <section className="rounded-2xl border border-white/70 bg-white/50 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-900">Filtres avances</h2>
-          <p className="text-xs text-slate-500">Affinez la recherche pour isoler un evenement</p>
-        </div>
-        <button
-          type="button"
-          onClick={onReset}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-        >
-          Reinitialiser
-        </button>
+       
+       
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
@@ -101,10 +92,9 @@ export function AuditFilters({
           value={date}
           onChange={(event) => onDateChange(event.target.value)}
         />
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          Les filtres sont cumulatifs et conservent le contexte d'analyse pendant l'ouverture du drawer.
-        </div>
+     
       </div>
+      
     </section>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 
 function Icon({ children, size = 16 }: { children: ReactNode; size?: number }) {

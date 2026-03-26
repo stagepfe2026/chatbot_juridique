@@ -197,6 +197,13 @@ class ClaimStatus(str, Enum):
     ANSWERED = "ANSWERED"
 
 
+class ClaimPriority(str, Enum):
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+
+
 class ClaimAttachmentIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     mimeType: str = Field(min_length=6, max_length=80, pattern=r"^image\/")
@@ -213,6 +220,7 @@ class ClaimAttachmentOut(BaseModel):
 
 class ClaimCreateRequest(BaseModel):
     category: ClaimCategory
+    priority: ClaimPriority = ClaimPriority.NORMAL
     subject: str = Field(min_length=3, max_length=160)
     description: str = Field(min_length=10, max_length=3000)
     attachments: list[ClaimAttachmentIn] = Field(default_factory=list, max_length=4)
@@ -227,6 +235,7 @@ class ClaimOut(BaseModel):
     userId: str
     userEmail: str
     category: ClaimCategory
+    priority: ClaimPriority = ClaimPriority.NORMAL
     subject: str
     description: str
     status: ClaimStatus
@@ -272,4 +281,3 @@ class AuditLogOut(BaseModel):
     ip: str
     timestamp: datetime
     details: AuditLogDetailsOut
-
