@@ -14,6 +14,8 @@ from app.schemas import (
     AuthUser,
     DocumentFavoriteResponse,
     DocumentFavoriteUpdate,
+    DocumentCategory,
+    DocumentSearchResponse,
     DocumentSearchResult,
     FavoritesCountOut,
 )
@@ -33,14 +35,29 @@ def _preview_text(value: str, max_len: int = 80) -> str:
     return text[: max_len - 3].rstrip() + "..."
 
 
-@router.get("/search", response_model=list[DocumentSearchResult])
+@router.get("/search", response_model=DocumentSearchResponse)
 def search_documents(
     request: Request,
     query: str = "",
     limit: int = 20,
+    page: int = 1,
+    category: DocumentCategory | None = None,
+    dateFrom: str | None = None,
+    dateTo: str | None = None,
+    sortField: str = "date",
+    sortDir: str = "desc",
     current_user: AuthUser = Depends(get_current_user_from_request),
 ):
-    results = search_documents_controller(query=query, limit=limit)
+    results = search_documents_controller(
+        query=query,
+        limit=limit,
+        page=page,
+        category=category,
+        date_from=dateFrom,
+        date_to=dateTo,
+        sort_field=sortField,
+        sort_dir=sortDir,
+    )
     record_audit_event(
         request=request,
         action="SEARCH",
@@ -49,7 +66,18 @@ def search_documents(
         status=AuditLogStatus.SUCCESS,
         level=AuditLogLevel.INFO,
         message="Recherche de documents effectuee.",
-        payload={"queryPreview": _preview_text(query, 120), "count": len(results), "limit": limit},
+        payload={
+            "queryPreview": _preview_text(query, 120),
+            "count": len(results.items),
+            "total": results.total,
+            "limit": limit,
+            "page": page,
+            "category": category.value if category else None,
+            "dateFrom": dateFrom,
+            "dateTo": dateTo,
+            "sortField": sortField,
+            "sortDir": sortDir,
+        },
     )
     return results
 

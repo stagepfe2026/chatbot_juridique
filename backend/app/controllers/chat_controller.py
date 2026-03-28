@@ -3,11 +3,11 @@ from app.services.chat_service import create_chat_question, download_document_fi
 
 
 async def create_question_controller(payload: AskQuestionRequest):
-    return await create_chat_question(payload.question, conversation_id=payload.conversationId)
+    return await create_chat_question(payload.question, conversation_id=payload.conversationId, response_mode=payload.responseMode)
 
 
 async def create_question_with_user_controller(payload: AskQuestionRequest, user_id: str | None):
-    return await create_chat_question(payload.question, user_id=user_id, conversation_id=payload.conversationId)
+    return await create_chat_question(payload.question, user_id=user_id, conversation_id=payload.conversationId, response_mode=payload.responseMode)
 
 
 async def get_question_sources_controller(question_id: str):

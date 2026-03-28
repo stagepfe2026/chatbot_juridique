@@ -14,14 +14,17 @@ export function formatRelativeHours(hours: number) {
 }
 
 export function statusBadgeClass(status: ClaimStatus) {
-  if (status === "RESOLVED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "IN_PROGRESS") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (status === "CLOSED") return "border-slate-300 bg-slate-100 text-slate-700";
+  if (status === "RESOLVED" || status === "ANSWERED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "PROCESSING") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (status === "UNDER_REVIEW") return "border-sky-200 bg-sky-50 text-sky-700";
   return "border-rose-200 bg-rose-50 text-rose-700";
 }
 
 export function priorityBadgeClass(priority: ClaimPriority) {
   if (priority === "URGENT") return "border-rose-200 bg-rose-600 text-white";
-  if (priority === "IMPORTANT") return "border-amber-200 bg-amber-100 text-amber-800";
+  if (priority === "HIGH") return "border-amber-200 bg-amber-100 text-amber-800";
+  if (priority === "NORMAL") return "border-sky-200 bg-sky-50 text-sky-700";
   return "border-slate-200 bg-slate-100 text-slate-700";
 }
 

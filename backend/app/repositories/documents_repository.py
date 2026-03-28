@@ -143,20 +143,69 @@ class DocumentsRepository:
         )
         return [str(doc["_id"]) for doc in docs]
 
-    def search_active_documents(self, *, terms: list[str], limit: int = 25) -> list[DocumentModel]:
-        if not terms:
-            return []
-        conditions = [
-            {
-                "$or": [
-                    {"title": {"$regex": term, "$options": "i"}},
-                    {"content": {"$regex": term, "$options": "i"}},
-                ]
-            }
-            for term in terms
-        ]
-        query = {"deletedAt": None, "$and": conditions} if conditions else {"deletedAt": None}
-        cursor = get_documents_collection().find(query).sort("createdAt", -1).limit(limit)
+    def build_search_query(
+        self,
+        *,
+        terms: list[str],
+        category: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> dict[str, Any]:
+        query: dict[str, Any] = {"deletedAt": None}
+        conditions: list[dict[str, Any]] = []
+
+        if terms:
+            conditions.extend(
+                {
+                    "$or": [
+                        {"title": {"$regex": term, "$options": "i"}},
+                        {"content": {"$regex": term, "$options": "i"}},
+                        {"description": {"$regex": term, "$options": "i"}},
+                    ]
+                }
+                for term in terms
+            )
+
+        if category:
+            conditions.append({"category": category})
+
+        realized_filter: dict[str, Any] = {}
+        if date_from is not None:
+            realized_filter["$gte"] = date_from
+        if date_to is not None:
+            realized_filter["$lte"] = date_to
+        if realized_filter:
+            conditions.append({"realizedAt": realized_filter})
+
+        if conditions:
+            query["$and"] = conditions
+        return query
+
+    def count_search_active_documents(
+        self,
+        *,
+        terms: list[str],
+        category: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        query = self.build_search_query(terms=terms, category=category, date_from=date_from, date_to=date_to)
+        return int(get_documents_collection().count_documents(query))
+
+    def search_active_documents(
+        self,
+        *,
+        terms: list[str],
+        category: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        limit: int = 25,
+        skip: int = 0,
+        sort_field: str = "createdAt",
+        sort_dir: int = -1,
+    ) -> list[DocumentModel]:
+        query = self.build_search_query(terms=terms, category=category, date_from=date_from, date_to=date_to)
+        cursor = get_documents_collection().find(query).sort(sort_field, sort_dir).skip(skip).limit(limit)
         return [DocumentModel.from_mongo(item) for item in cursor]
 
     def hard_delete_document(self, document_id: str) -> dict[str, Any]:

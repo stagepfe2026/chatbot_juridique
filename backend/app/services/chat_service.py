@@ -10,21 +10,35 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.repositories import DocumentsRepository
 from app.rag.pipeline import ask_question, get_sources_for_question, suggest_question_suggestions
-from app.schemas import AskQuestionResponse, SourceItem
+from app.schemas import AskQuestionResponse, ResponseMode, SourceItem
 
 logger = logging.getLogger(__name__)
 
 _documents_repo = DocumentsRepository()
 
 
+def _apply_response_mode(question: str, response_mode: ResponseMode) -> str:
+    clean = question.strip()
+    if response_mode == ResponseMode.SHORT:
+        return (
+            "Instruction de reponse: fournir une reponse courte, claire et operationnelle en 3 a 5 points maximum, sans details inutiles.\n"
+            f"Question utilisateur: {clean}"
+        )
+    return (
+        "Instruction de reponse: fournir une reponse detaillee, structuree et pedagogique, avec explications et points d'attention si necessaire.\n"
+        f"Question utilisateur: {clean}"
+    )
+
+
 async def create_chat_question(
     question: str,
     user_id: str | None = None,
     conversation_id: str | None = None,
+    response_mode: ResponseMode = ResponseMode.DETAILED,
 ) -> AskQuestionResponse:
     question_id, answer, sources, source_file, resolved_conversation_id = await asyncio.to_thread(
         ask_question,
-        question,
+        _apply_response_mode(question, response_mode),
         user_id,
         conversation_id,
     )

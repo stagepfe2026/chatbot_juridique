@@ -1,11 +1,38 @@
 import { httpClient } from "./httpClient";
-import type { DocumentFavoriteResponse, DocumentSearchResult } from "../models/document.models";
+import type { DocumentCategory, DocumentFavoriteResponse, DocumentSearchResponse, DocumentSearchResult } from "../models/document.models";
 
-export async function searchDocuments(query: string, limit = 20): Promise<DocumentSearchResult[]> {
-  const res = await httpClient.get<DocumentSearchResult[]>("/user/documents/search", {
-    params: { query, limit },
+export interface SearchDocumentsParams {
+  query: string;
+  limit?: number;
+  page?: number;
+  category?: DocumentCategory | "ALL";
+  dateFrom?: string;
+  dateTo?: string;
+  sortField?: "date" | "title";
+  sortDir?: "desc" | "asc";
+}
+
+export async function searchDocuments(params: SearchDocumentsParams): Promise<DocumentSearchResponse> {
+  const { query, limit = 20, page = 1, category = "ALL", dateFrom, dateTo, sortField = "date", sortDir = "desc" } = params;
+  const res = await httpClient.get<DocumentSearchResponse>("/user/documents/search", {
+    params: {
+      query,
+      limit,
+      page,
+      category: category === "ALL" ? undefined : category,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      sortField,
+      sortDir,
+    },
   });
-  return Array.isArray(res.data) ? res.data : [];
+
+  return {
+    items: Array.isArray(res.data?.items) ? res.data.items : [],
+    total: typeof res.data?.total === "number" ? res.data.total : 0,
+    page: typeof res.data?.page === "number" ? res.data.page : page,
+    limit: typeof res.data?.limit === "number" ? res.data.limit : limit,
+  };
 }
 
 export async function listFavoriteDocuments(limit = 50): Promise<DocumentSearchResult[]> {

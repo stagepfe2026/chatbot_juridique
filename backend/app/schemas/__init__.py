@@ -43,8 +43,17 @@ class DocumentSearchResult(BaseModel):
     excerpt: str = ""
     isFavored: bool = False
     downloadUrl: str = ""
+    fileType: str = ""
+    documentStatus: DocumentStatus = DocumentStatus.INDEXED
     createdAt: datetime | None = None
     realizedAt: datetime | None = None
+
+
+class DocumentSearchResponse(BaseModel):
+    items: list[DocumentSearchResult] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    limit: int = 20
 
 
 class DocumentFavoriteUpdate(BaseModel):
@@ -74,9 +83,15 @@ class IndexManyResponse(BaseModel):
     failed: int
 
 
+class ResponseMode(str, Enum):
+    SHORT = "SHORT"
+    DETAILED = "DETAILED"
+
+
 class AskQuestionRequest(BaseModel):
     conversationId: str | None = None
     question: str
+    responseMode: ResponseMode = ResponseMode.DETAILED
 
 
 class SourceItem(BaseModel):

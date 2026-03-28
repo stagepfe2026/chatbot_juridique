@@ -1,12 +1,17 @@
-﻿export interface AskQuestionRequest {
+export type ResponseMode = "SHORT" | "DETAILED";
+
+export interface AskQuestionRequest {
   conversationId?: string;
   question: string;
+  responseMode?: ResponseMode;
 }
 
 export interface SourceItem {
   documentId: string;
   title: string;
   excerpt: string;
+  section?: string | null;
+  page?: string | null;
 }
 
 export interface SourceFile {
@@ -24,4 +29,3 @@ export interface AskQuestionResponse {
 }
 
 export type QuestionSuggestion = string;
-

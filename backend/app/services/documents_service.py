@@ -1,6 +1,6 @@
 import re
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -16,6 +16,7 @@ from app.repositories import DocumentsRepository
 from app.schemas import (
     DocumentCategory,
     DocumentFavoriteResponse,
+    DocumentSearchResponse,
     DocumentSearchResult,
     DocumentOut,
     DocumentStatus,
@@ -267,6 +268,61 @@ def _split_search_terms(query: str) -> list[str]:
     return raw_terms[:6]
 
 
+def _parse_date_start(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _parse_date_end(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+        return parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
+    except ValueError:
+        return None
+
+
+def _matches_filters(
+    item: DocumentSearchResult,
+    *,
+    category: DocumentCategory | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> bool:
+    if category is not None and item.category != category:
+        return False
+
+    item_date = item.realizedAt or item.createdAt
+    if (date_from or date_to) and item_date is None:
+        return False
+    if item_date is not None:
+        if date_from is not None and item_date < date_from:
+            return False
+        if date_to is not None and item_date > date_to:
+            return False
+    return True
+
+
+def _sort_results(items: list[DocumentSearchResult], sort_field: str, sort_dir: str) -> list[DocumentSearchResult]:
+    reverse = sort_dir.lower() != "asc"
+
+    if sort_field == "title":
+        return sorted(items, key=lambda doc: (doc.title or "").lower(), reverse=reverse)
+
+    def sort_key(doc: DocumentSearchResult) -> float:
+        value = doc.realizedAt or doc.createdAt
+        if value is None:
+            return 0.0
+        return value.timestamp()
+
+    return sorted(items, key=sort_key, reverse=reverse)
+
+
 def _contains_terms(text: str, terms: list[str]) -> bool:
     if not terms:
         return True
@@ -304,11 +360,23 @@ def _build_excerpt(content: str, terms: list[str], max_len: int = 240) -> str:
     return snippet
 
 
-def _search_documents_qdrant(query: str, limit: int, terms: list[str]) -> list[DocumentSearchResult]:
+def _search_documents_qdrant(
+    *,
+    query: str,
+    page: int,
+    limit: int,
+    terms: list[str],
+    category: DocumentCategory | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+    sort_field: str,
+    sort_dir: str,
+) -> DocumentSearchResponse:
     results: dict[str, DocumentSearchResult] = {}
     ordered_ids: list[str] = []
+    fetch_k = max(page * limit * 8, 200)
 
-    scored = _get_vector_store().similarity_search_with_score(query, k=max(limit * 4, 10))
+    scored = _get_vector_store().similarity_search_with_score(query, k=fetch_k)
     for doc, _score in scored:
         content = doc.page_content or ""
         if terms and not _contains_terms(content, terms):
@@ -317,36 +385,36 @@ def _search_documents_qdrant(query: str, limit: int, terms: list[str]) -> list[D
         document_id = str(metadata.get("document_id", "")).strip()
         if not document_id or document_id in results:
             continue
-        title = str(metadata.get("title", "Document juridique"))
+        title = str(metadata.get("title", "Document ministeriel"))
         category_raw = str(metadata.get("category", ""))
         excerpt = _build_excerpt(content, terms)
 
         try:
-            category = DocumentCategory(category_raw)
+            item_category = DocumentCategory(category_raw)
         except Exception:
-            category = DocumentCategory.LOI_DES_FINANCES
+            item_category = DocumentCategory.LOI_DES_FINANCES
 
         results[document_id] = DocumentSearchResult(
             id=document_id,
             title=title,
-            category=category,
+            category=item_category,
             description="",
             excerpt=excerpt,
             isFavored=False,
             downloadUrl=f"/api/chat/documents/{document_id}/download",
+            fileType="",
+            documentStatus=DocumentStatus.INDEXED,
             createdAt=None,
             realizedAt=None,
         )
         ordered_ids.append(document_id)
-        if len(ordered_ids) >= limit:
-            break
 
     if not results:
-        return []
+        return DocumentSearchResponse(items=[], total=0, page=page, limit=limit)
 
     doc_map = _documents_repo.get_active_documents_fields_by_ids(
         ordered_ids,
-        {"title": 1, "category": 1, "description": 1, "isFavored": 1, "createdAt": 1, "realizedAt": 1},
+        {"title": 1, "category": 1, "description": 1, "isFavored": 1, "createdAt": 1, "realizedAt": 1, "fileType": 1, "documentStatus": 1},
     )
 
     enriched: list[DocumentSearchResult] = []
@@ -366,22 +434,73 @@ def _search_documents_qdrant(query: str, limit: int, terms: list[str]) -> list[D
             item.isFavored = bool(raw.get("isFavored", False))
             item.createdAt = raw.get("createdAt")
             item.realizedAt = raw.get("realizedAt")
-        enriched.append(item)
+            item.fileType = str(raw.get("fileType", ""))
+            try:
+                item.documentStatus = DocumentStatus(str(raw.get("documentStatus", DocumentStatus.INDEXED.value)))
+            except Exception:
+                item.documentStatus = DocumentStatus.INDEXED
+        if _matches_filters(item, category=category, date_from=date_from, date_to=date_to):
+            enriched.append(item)
 
-    return enriched
+    sorted_items = _sort_results(enriched, sort_field=sort_field, sort_dir=sort_dir)
+    total = len(sorted_items)
+    start_index = max((page - 1) * limit, 0)
+    end_index = start_index + limit
+    return DocumentSearchResponse(items=sorted_items[start_index:end_index], total=total, page=page, limit=limit)
 
 
-def search_documents(*, query: str, limit: int = 20) -> list[DocumentSearchResult]:
+def search_documents(
+    *,
+    query: str,
+    limit: int = 20,
+    page: int = 1,
+    category: DocumentCategory | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    sort_field: str = "date",
+    sort_dir: str = "desc",
+) -> DocumentSearchResponse:
     terms = _split_search_terms(query)
     if not terms:
-        return []
+        return DocumentSearchResponse(items=[], total=0, page=page, limit=limit)
+
+    safe_page = max(page, 1)
+    safe_limit = min(max(limit, 1), 50)
+    parsed_date_from = _parse_date_start(date_from)
+    parsed_date_to = _parse_date_end(date_to)
+    mongo_sort_field = "title" if sort_field == "title" else "realizedAt"
+    mongo_sort_dir = 1 if sort_dir.lower() == "asc" else -1
 
     try:
-        return _search_documents_qdrant(query, limit, terms)
+        return _search_documents_qdrant(
+            query=query,
+            page=safe_page,
+            limit=safe_limit,
+            terms=terms,
+            category=category,
+            date_from=parsed_date_from,
+            date_to=parsed_date_to,
+            sort_field=sort_field,
+            sort_dir=sort_dir,
+        )
     except Exception:
-        # Fallback sur Mongo si Qdrant indisponible.
         regex_terms = [re.escape(term) for term in terms]
-        docs = _documents_repo.search_active_documents(terms=regex_terms, limit=limit)
+        total = _documents_repo.count_search_active_documents(
+            terms=regex_terms,
+            category=category.value if category else None,
+            date_from=parsed_date_from,
+            date_to=parsed_date_to,
+        )
+        docs = _documents_repo.search_active_documents(
+            terms=regex_terms,
+            category=category.value if category else None,
+            date_from=parsed_date_from,
+            date_to=parsed_date_to,
+            limit=safe_limit,
+            skip=(safe_page - 1) * safe_limit,
+            sort_field=mongo_sort_field,
+            sort_dir=mongo_sort_dir,
+        )
         results: list[DocumentSearchResult] = []
         for doc in docs:
             excerpt_source = doc.content or doc.description or ""
@@ -394,11 +513,14 @@ def search_documents(*, query: str, limit: int = 20) -> list[DocumentSearchResul
                     excerpt=_build_excerpt(excerpt_source, terms),
                     isFavored=doc.is_favored,
                     downloadUrl=f"/api/chat/documents/{doc.id}/download",
+                    fileType=doc.file_type,
+                    documentStatus=DocumentStatus(doc.document_status),
                     createdAt=doc.created_at,
                     realizedAt=doc.realized_at,
                 )
             )
-        return results
+        return DocumentSearchResponse(items=results, total=total, page=safe_page, limit=safe_limit)
+
 
 
 def list_favorite_documents(limit: int = 50) -> list[DocumentSearchResult]:
@@ -415,6 +537,8 @@ def list_favorite_documents(limit: int = 50) -> list[DocumentSearchResult]:
                 excerpt=_build_excerpt(excerpt_source, []),
                 isFavored=doc.is_favored,
                 downloadUrl=f"/api/chat/documents/{doc.id}/download",
+                fileType=doc.file_type,
+                documentStatus=DocumentStatus(doc.document_status),
                 createdAt=doc.created_at,
                 realizedAt=doc.realized_at,
             )

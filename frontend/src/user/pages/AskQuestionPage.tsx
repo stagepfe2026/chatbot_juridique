@@ -1,11 +1,13 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import jsPDF from "jspdf";
-import type { SourceFile } from "../../models/chat.models";
+import type { ResponseMode, SourceFile, SourceItem } from "../../models/chat.models";
 import type { ConversationMessage, ConversationSummary } from "../../models/conversation.models";
 import {
   archiveConversation,
   askQuestion,
+  getSources,
   deleteConversation,
   getConversationMessages,
   getQuestionSuggestions,
@@ -22,7 +24,12 @@ type ChatMessage = {
   time: string;
   questionId?: string | null;
   sourceFile?: SourceFile | null;
+  sources?: SourceItem[];
+  followUpSuggestions?: string[];
+  followUpStatus?: "idle" | "loading" | "ready" | "error";
 };
+const CHAT_FEEDBACK_KEY = "chat-message-feedback";
+const CHAT_CLAIM_DRAFT_KEY = "chat-claim-draft";
 
 function Icon({ children, size = 16 }: { children: ReactNode; size?: number }) {
   return (
@@ -69,7 +76,7 @@ function sanitizeAnswerText(text: string): string {
     .map((line) =>
       line
         .replace(/\s*:\s*(?=[)\]])/g, "")
-        .replace(/\s+et\s+(?=[)\],;\.])/gi, " ")
+        .replace(/\s+et\s+(?=[)\],;.])/gi, " ")
         .replace(/\(\s*\)/g, "")
         .replace(/[ \t]{2,}/g, " ")
         .trimEnd(),
@@ -98,7 +105,29 @@ function getTableCellAlignment(cell: string): string {
   return isNumericLikeCell(cell) ? "text-right font-medium tabular-nums text-slate-900" : "text-left text-slate-700";
 }
 
-function renderAssistantContent(text: string): ReactNode {
+function escapeRegExp(value: string): string {
+  const specialCharacters = new Set(["\\", ".", "*", "+", "?", "^", "$", "{", "}", "(", ")", "|", "[", "]"]);
+  return [...value].map((char) => (specialCharacters.has(char) ? `\\${char}` : char)).join("");
+}
+
+function renderHighlightedText(text: string, searchQuery: string): ReactNode {
+  if (!searchQuery.trim()) return text;
+
+  const pattern = new RegExp(`(${escapeRegExp(searchQuery.trim())})`, "gi");
+  const parts = text.split(pattern);
+
+  return parts.map((part, index) =>
+    index % 2 === 1 ? (
+      <mark key={`${part}-${index}`} className="rounded bg-amber-100 px-0.5 text-inherit">
+        {part}
+      </mark>
+    ) : (
+      <Fragment key={`${part}-${index}`}>{part}</Fragment>
+    ),
+  );
+}
+
+function renderAssistantContent(text: string, searchQuery = ""): ReactNode {
   const lines = String(text ?? "").replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -141,7 +170,7 @@ function renderAssistantContent(text: string): ReactNode {
                       key={`head-${index}`}
                       className={`border-b border-slate-200 px-3 py-2.5 ${isNumericLikeCell(cell) ? "text-right" : "text-left"}`}
                     >
-                      {cell}
+                      {renderHighlightedText(cell, searchQuery)}
                     </th>
                   ))}
                 </tr>
@@ -156,7 +185,7 @@ function renderAssistantContent(text: string): ReactNode {
                           key={`cell-${rowIndex}-${cellIndex}`}
                           className={`px-3 py-2.5 align-top leading-5.5 ${getTableCellAlignment(value)}`}
                         >
-                          {value}
+                          {renderHighlightedText(value, searchQuery)}
                         </td>
                       );
                     })}
@@ -187,7 +216,7 @@ function renderAssistantContent(text: string): ReactNode {
               className="flex gap-3 rounded-lg border-l-2 border-red-400/70 bg-white/80 px-3 py-2 text-slate-700"
             >
               <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-red-500/90" aria-hidden="true" />
-              <span className="leading-6 text-slate-700">{item}</span>
+              <span className="leading-6 text-slate-700">{renderHighlightedText(item, searchQuery)}</span>
             </li>
           ))}
         </ul>,
@@ -209,7 +238,7 @@ function renderAssistantContent(text: string): ReactNode {
 
     blocks.push(
       <p key={`paragraph-${blocks.length}`} className="leading-6 text-slate-700">
-        {paragraphLines.join(" ")}
+        {renderHighlightedText(paragraphLines.join(" "), searchQuery)}
       </p>,
     );
   }
@@ -225,7 +254,25 @@ function fromConversationMessages(messages: ConversationMessage[]): ChatMessage[
     time: new Date(item.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
     questionId: item.questionId ?? null,
     sourceFile: item.sourceFile ?? null,
+    sources: [],
+    followUpSuggestions: [],
+    followUpStatus: item.role === "assistant" ? "idle" : "ready",
   }));
+}
+
+function normalizeFollowUpSuggestions(sourceQuestion: string, items: string[], limit = 3): string[] {
+  const normalizedSource = sourceQuestion.trim().toLocaleLowerCase();
+  const unique = new Set<string>();
+
+  for (const item of items) {
+    const next = item.trim();
+    if (!next) continue;
+    if (next.toLocaleLowerCase() === normalizedSource) continue;
+    unique.add(next);
+    if (unique.size >= limit) break;
+  }
+
+  return [...unique];
 }
 
 function countTypedWords(value: string): number {
@@ -244,6 +291,31 @@ function slugifyFilenamePart(value: string): string {
 function buildPdfFilename(question: string): string {
   const base = slugifyFilenamePart(question).slice(0, 60) || "reponse-juridique";
   return `${base}-${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
+function buildConversationExportFilename(title: string, extension: "pdf" | "txt"): string {
+  const base = slugifyFilenamePart(title).slice(0, 60) || "conversation-juridique";
+  return `${base}-${new Date().toISOString().slice(0, 10)}.${extension}`;
+}
+
+function readFeedbackStore(): Record<string, "up" | "down"> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(CHAT_FEEDBACK_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, "up" | "down">) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFeedbackStore(value: Record<string, "up" | "down">): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(CHAT_FEEDBACK_KEY, JSON.stringify(value));
+}
+
+function sourceMetaLabel(source: SourceItem): string {
+  const parts = [source.section, source.page ? `Page ${source.page}` : null].filter(Boolean);
+  return parts.join(" ? ");
 }
 
 type PdfAnswerBlock =
@@ -308,6 +380,152 @@ function parseAnswerBlocks(text: string): PdfAnswerBlock[] {
   }
 
   return blocks;
+}
+
+function downloadFile(filename: string, content: BlobPart, mimeType: string): void {
+  if (typeof window === "undefined") return;
+
+  const blob = new Blob([content], { type: mimeType });
+  const url = window.URL.createObjectURL(blob);
+  const link = window.document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  window.document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function downloadConversationText(title: string, messages: ChatMessage[]): void {
+  const exportedAt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(new Date());
+  const lines = [
+    `Conversation : ${title}`,
+    `Exportee le : ${exportedAt}`,
+    "",
+    ...messages.flatMap((message) => [
+      `[${message.time}] ${message.role === "user" ? "Utilisateur" : "Assistant"}`,
+      message.text,
+      message.sourceFile?.filename ? `Document source : ${message.sourceFile.filename}` : "",
+      "",
+    ]),
+  ];
+
+  downloadFile(buildConversationExportFilename(title, "txt"), lines.join("\n"), "text/plain;charset=utf-8");
+}
+
+function downloadConversationPdf(title: string, messages: ChatMessage[]): void {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 18;
+  const contentWidth = pageWidth - margin * 2;
+  const generatedAt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(new Date());
+  const safeTitle = title || "Conversation juridique";
+  let cursorY = 42;
+
+  const toConversationParagraphs = (text: string): string[] => {
+    const blocks = parseAnswerBlocks(text || "");
+    if (!blocks.length) return [text || "-"];
+
+    return blocks.flatMap((block) => {
+      if (block.type === "paragraph") return [block.text];
+      if (block.type === "list") return block.items.map((item) => `- ${item}`);
+      return [block.header.join(" | "), ...block.rows.map((row) => row.join(" | "))];
+    });
+  };
+
+  const drawPageChrome = () => {
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.4);
+    doc.line(margin, 16, pageWidth - margin, 16);
+    doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14);
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text("Assistant Juridique", margin, 12);
+  };
+
+  const addPage = () => {
+    doc.addPage();
+    drawPageChrome();
+    cursorY = 26;
+  };
+
+  const ensureSpace = (height: number) => {
+    if (cursorY + height <= pageHeight - 22) return;
+    addPage();
+  };
+
+  const writeParagraph = (text: string, fontSize = 10.5, color: [number, number, number] = [15, 23, 42]) => {
+    const lines = doc.splitTextToSize(text || "-", contentWidth);
+    const lineHeight = Math.max(5, fontSize * 0.42 + 1.2);
+    const blockHeight = lines.length * lineHeight;
+    ensureSpace(blockHeight + 1);
+    doc.setFontSize(fontSize);
+    doc.setTextColor(color[0], color[1], color[2]);
+    doc.text(lines, margin, cursorY);
+    cursorY += blockHeight + 1;
+  };
+
+  const drawMessage = (message: ChatMessage) => {
+    const paragraphs = toConversationParagraphs(message.text);
+    const previewLines = paragraphs.flatMap((paragraph) => doc.splitTextToSize(paragraph || "-", contentWidth));
+    const textHeight = previewLines.reduce((total, line) => total + (Array.isArray(line) ? line.length : 1) * 4.8, 0);
+    const sourceHeight = message.sourceFile?.filename ? 6 : 0;
+    ensureSpace(14 + textHeight + sourceHeight);
+
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.text(message.role === "user" ? "Utilisateur" : "Assistant", margin, cursorY);
+
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text(message.time, pageWidth - margin, cursorY, { align: "right" });
+
+    cursorY += 3;
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(margin, cursorY, pageWidth - margin, cursorY);
+    cursorY += 5;
+
+    paragraphs.forEach((paragraph) => {
+      writeParagraph(paragraph);
+    });
+
+    if (message.sourceFile?.filename) {
+      writeParagraph(`Document source : ${message.sourceFile.filename}`, 9.5, [100, 116, 139]);
+    }
+
+    cursorY += 4;
+  };
+
+  drawPageChrome();
+
+  doc.setFontSize(16);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Export de conversation", margin, 28);
+
+  doc.setFontSize(11);
+  const titleLines = doc.splitTextToSize(safeTitle, contentWidth);
+  doc.text(titleLines, margin, 36);
+
+  cursorY = 48;
+  writeParagraph(`Date d'export : ${generatedAt}`, 9.5, [71, 85, 105]);
+  writeParagraph(`Nombre de messages : ${messages.length}`, 9.5, [71, 85, 105]);
+  cursorY += 2;
+
+  messages.forEach((message) => {
+    drawMessage(message);
+  });
+
+  const totalPages = doc.getNumberOfPages();
+  for (let page = 1; page <= totalPages; page += 1) {
+    doc.setPage(page);
+    doc.setFontSize(8.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Page ${page} / ${totalPages}`, pageWidth - margin, pageHeight - 8.5, { align: "right" });
+  }
+
+  doc.save(buildConversationExportFilename(title, "pdf"));
 }
 
 function downloadAnswerPdf(question: string, answer: string, sourceFile?: SourceFile | null): void {
@@ -468,6 +686,7 @@ function downloadAnswerPdf(question: string, answer: string, sourceFile?: Source
 }
 
 export default function AskQuestionPage() {
+  const navigate = useNavigate();
   const [question, setQuestion] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -489,6 +708,11 @@ export default function AskQuestionPage() {
   const [renameValue, setRenameValue] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [responseMode, setResponseMode] = useState<ResponseMode>("DETAILED");
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [feedbackByQuestionId, setFeedbackByQuestionId] = useState<Record<string, "up" | "down">>({});
+  const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+  const [sourcesLoadingByQuestionId, setSourcesLoadingByQuestionId] = useState<Record<string, boolean>>({});
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -505,6 +729,7 @@ export default function AskQuestionPage() {
 
   useEffect(() => {
     void refreshHistory();
+    setFeedbackByQuestionId(readFeedbackStore());
   }, []);
 
   useEffect(() => {
@@ -550,6 +775,20 @@ export default function AskQuestionPage() {
     };
   }, [question]);
 
+  useEffect(() => {
+    const targetIndex = messages.findIndex((message, index) => {
+      if (message.role !== "assistant" || message.followUpStatus !== "idle") return false;
+      return Boolean([...messages.slice(0, index)].reverse().find((item) => item.role === "user")?.text.trim());
+    });
+
+    if (targetIndex < 0) return;
+    const targetMessage = messages[targetIndex];
+    const relatedQuestion = [...messages.slice(0, targetIndex)].reverse().find((item) => item.role === "user")?.text ?? "";
+    if (!targetMessage) return;
+
+    loadFollowUpSuggestions(targetMessage.id, relatedQuestion);
+  }, [messages]);
+
   const visibleHistory = useMemo(
     () =>
       [...historyItems]
@@ -566,6 +805,26 @@ export default function AskQuestionPage() {
     [historyItems],
   );
 
+  const normalizedConversationSearch = conversationSearch.trim().toLocaleLowerCase();
+
+  const filteredMessages = useMemo(
+    () =>
+      normalizedConversationSearch
+        ? messages.filter((message) => message.text.toLocaleLowerCase().includes(normalizedConversationSearch))
+        : messages,
+    [messages, normalizedConversationSearch],
+  );
+
+  const activeConversationTitle = useMemo(() => {
+    const historyTitle = historyItems.find((item) => item.id === activeHistoryId)?.title?.trim();
+    if (historyTitle) return historyTitle;
+
+    const firstUserMessage = messages.find((message) => message.role === "user")?.text.trim();
+    if (firstUserMessage) return firstUserMessage.slice(0, 80);
+
+    return "conversation-juridique";
+  }, [activeHistoryId, historyItems, messages]);
+
   function resetSuggestions() {
     setSuggestions([]);
     setSuggestionsOpen(false);
@@ -577,9 +836,45 @@ export default function AskQuestionPage() {
     setConversationId(undefined);
     setMessages([]);
     setQuestion("");
+    setConversationSearch("");
     resetSuggestions();
     setError(null);
     setActiveHistoryId(null);
+  }
+
+  function loadFollowUpSuggestions(messageId: string, sourceQuestion: string) {
+    const trimmedQuestion = sourceQuestion.trim();
+    if (countTypedWords(trimmedQuestion) < 3) {
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === messageId ? { ...item, followUpSuggestions: [], followUpStatus: "ready" } : item,
+        ),
+      );
+      return;
+    }
+
+    setMessages((current) =>
+      current.map((item) => (item.id === messageId ? { ...item, followUpStatus: "loading" } : item)),
+    );
+
+    void getQuestionSuggestions(trimmedQuestion, 3)
+      .then((items) => {
+        const nextSuggestions = normalizeFollowUpSuggestions(trimmedQuestion, items, 3);
+        setMessages((current) =>
+          current.map((item) =>
+            item.id === messageId
+              ? { ...item, followUpSuggestions: nextSuggestions, followUpStatus: "ready" }
+              : item,
+          ),
+        );
+      })
+      .catch(() => {
+        setMessages((current) =>
+          current.map((item) =>
+            item.id === messageId ? { ...item, followUpSuggestions: [], followUpStatus: "error" } : item,
+          ),
+        );
+      });
   }
 
   async function openHistoryItem(item: ConversationSummary) {
@@ -587,6 +882,7 @@ export default function AskQuestionPage() {
       setError(null);
       setActiveHistoryId(item.id);
       setConversationId(item.id);
+      setConversationSearch("");
       resetSuggestions();
       const data = await getConversationMessages(item.id);
       setMessages(fromConversationMessages(data));
@@ -680,8 +976,92 @@ export default function AskQuestionPage() {
   }
 
 
-  async function onAsk() {
-    const currentQuestion = question.trim();
+  async function handleCopyResponse(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      publishSnackbar({ variant: "success", message: "Reponse copiee." });
+    } catch {
+      publishSnackbar({ variant: "warning", message: "Copie impossible sur ce navigateur." });
+    }
+  }
+
+  function handleFeedback(questionId: string, value: "up" | "down") {
+    setFeedbackByQuestionId((current) => {
+      const next = { ...current };
+      if (current[questionId] === value) {
+        delete next[questionId];
+      } else {
+        next[questionId] = value;
+      }
+      writeFeedbackStore(next);
+      return next;
+    });
+    publishSnackbar({ variant: "success", message: value === "up" ? "Merci pour votre retour positif." : "Retour enregistre." });
+  }
+
+  function handleExportConversation(format: "pdf" | "txt") {
+    if (messages.length === 0) {
+      publishSnackbar({ variant: "warning", message: "Aucune conversation a exporter." });
+      return;
+    }
+
+    if (format === "pdf") {
+      downloadConversationPdf(activeConversationTitle, messages);
+      publishSnackbar({ variant: "success", message: "Conversation exportee en PDF." });
+      return;
+    }
+
+    downloadConversationText(activeConversationTitle, messages);
+    publishSnackbar({ variant: "success", message: "Conversation exportee en texte." });
+  }
+
+  function handleReportResponse(questionText: string, answerText: string) {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        CHAT_CLAIM_DRAFT_KEY,
+        JSON.stringify({
+          category: "CHATBOT",
+          priority: "NORMAL",
+          subject: `Signalement reponse chatbot - ${questionText.slice(0, 80)}`,
+          description: `Question posee : ${questionText}
+
+Reponse a verifier :
+${answerText}`,
+          pageContext: "/user/chat",
+        }),
+      );
+    }
+    publishSnackbar({ variant: "info", message: "Un brouillon de reclamation a ete prepare." });
+    navigate("/user/reclamations");
+  }
+
+  async function ensureSourcesLoaded(message: ChatMessage) {
+    if (!message.questionId) return;
+    if (message.sources && message.sources.length > 0) return;
+    if (sourcesLoadingByQuestionId[message.questionId]) return;
+
+    try {
+      setSourcesLoadingByQuestionId((current) => ({ ...current, [message.questionId!]: true }));
+      const items = await getSources(message.questionId);
+      setMessages((current) => current.map((item) => (item.questionId === message.questionId ? { ...item, sources: items } : item)));
+    } catch {
+      publishSnackbar({ variant: "warning", message: "Impossible de charger les sources." });
+    } finally {
+      setSourcesLoadingByQuestionId((current) => ({ ...current, [message.questionId!]: false }));
+    }
+  }
+
+  async function toggleSources(message: ChatMessage) {
+    if (!message.questionId) return;
+    const next = !expandedSources[message.questionId];
+    setExpandedSources((current) => ({ ...current, [message.questionId!]: next }));
+    if (next) {
+      await ensureSourcesLoaded(message);
+    }
+  }
+
+  async function onAsk(prefilledQuestion?: string) {
+    const currentQuestion = (prefilledQuestion ?? question).trim();
     if (!currentQuestion) return;
     if (!conversationId && conversationBootstrapping) return;
 
@@ -705,7 +1085,7 @@ export default function AskQuestionPage() {
       setQuestion("");
       resetSuggestions();
 
-      const res = await askQuestion({ question: currentQuestion, conversationId: requestConversationId });
+      const res = await askQuestion({ question: currentQuestion, conversationId: requestConversationId, responseMode });
 
       setConversationId((current) => current ?? res.conversationId);
       setActiveHistoryId(res.conversationId);
@@ -717,6 +1097,9 @@ export default function AskQuestionPage() {
         time: nowAsTime(),
         questionId: res.questionId,
         sourceFile: res.sourceFile ?? null,
+        sources: res.sources ?? [],
+        followUpSuggestions: [],
+        followUpStatus: "idle",
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -731,9 +1114,9 @@ export default function AskQuestionPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-140px)] min-h-[calc(100vh-140px)] gap-4 ">
+    <div className="flex h-[calc(107vh-140px)] min-h-[calc(107vh-140px)] gap-4 ">
       {sidebarOpen && (
-        <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(100vh-120px)] overflow-y-auto rounded-xl">
+        <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(104vh-120px)] overflow-y-auto rounded-xl">
           <div className="grid gap-2">
             <button
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold hover:bg-red-50 hover:text-red-600"
@@ -819,29 +1202,90 @@ export default function AskQuestionPage() {
       )}
 
       <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-          <div>
-            <div className="text-sm font-semibold text-red-900">Assistant Juridique IA</div>
-            <div className="text-xs text-slate-500">Posez vos questions juridiques</div>
+        <div className="border-b border-slate-200 px-5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-red-900">Assistant Juridique IA</div>
+              <div className="text-xs text-slate-500">Posez vos questions juridiques</div>
+            </div>
+
+            <button
+              className="rounded-lg border border-slate-200 p-2 hover:bg-red-50 hover:text-red-600"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+            >
+              <Icon>
+                <path d="M4 7h16"/>
+                <path d="M4 12h16"/>
+                <path d="M4 17h16"/>
+              </Icon>
+            </button>
           </div>
 
-          <button
-            className="rounded-lg border border-slate-200 p-2 hover:bg-red-50 hover:text-red-600"
-            onClick={() => setSidebarOpen((prev) => !prev)}
-          >
-            <Icon>
-              <path d="M4 7h16"/>
-              <path d="M4 12h16"/>
-              <path d="M4 17h16"/>
-            </Icon>
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleExportConversation("pdf")}
+              disabled={messages.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Icon size={14}>
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </Icon>
+              <span>Exporter PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExportConversation("txt")}
+              disabled={messages.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Icon size={14}>
+                <path d="M8 7h8" />
+                <path d="M8 12h8" />
+                <path d="M8 17h5" />
+                <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+              </Icon>
+              <span>Exporter TXT</span>
+            </button>
+            <div className="relative min-w-[220px] flex-1">
+              <input
+                type="search"
+                value={conversationSearch}
+                onChange={(e) => setConversationSearch(e.target.value)}
+                placeholder="Rechercher dans la conversation"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-red-300 focus:bg-white"
+              />
+              <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                <Icon size={14}>
+                  <circle cx="11" cy="11" r="6" />
+                  <path d="m20 20-3.5-3.5" />
+                </Icon>
+              </div>
+            </div>
+            {normalizedConversationSearch ? (
+              <>
+                <div className="text-xs text-slate-500">
+                  {filteredMessages.length} resultat{filteredMessages.length > 1 ? "s" : ""}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConversationSearch("")}
+                  className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Effacer
+                </button>
+              </>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5 scroll-smooth">
-          {messages.map((message, index) => {
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5 scroll-smooth">          {filteredMessages.length > 0 ? filteredMessages.map((message) => {
+            const sourceIndex = messages.findIndex((item) => item.id === message.id);
             const relatedQuestion =
               message.role === "assistant"
-                ? [...messages.slice(0, index)].reverse().find((item) => item.role === "user")?.text ?? ""
+                ? [...messages.slice(0, sourceIndex)].reverse().find((item) => item.role === "user")?.text ?? ""
                 : "";
 
             return (
@@ -849,49 +1293,195 @@ export default function AskQuestionPage() {
                 <div className={`max-w-2xl rounded-xl px-3 py-2 text-sm ${
                   message.role === "user" ? "bg-red-600 text-white shadow-sm" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-sm"
                 }`}>
-                  {message.role === "assistant" ? renderAssistantContent(message.text) : <div className="whitespace-pre-wrap">{message.text}</div>}
+                  {message.role === "assistant" ? renderAssistantContent(message.text, conversationSearch) : <div className="whitespace-pre-wrap">{renderHighlightedText(message.text, conversationSearch)}</div>}
                   {message.role === "assistant" && (
-                    <button
-                      type="button"
-                      onClick={() => downloadAnswerPdf(relatedQuestion, message.text, message.sourceFile)}
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                    >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-600">
-                        <Icon size={14}>
-                          <path d="M12 3v12" />
-                          <path d="m7 10 5 5 5-5" />
-                          <path d="M5 21h14" />
-                        </Icon>
-                      </span>
-                      <span>Telecharger en PDF</span>
-                    </button>
-                  )}
-                  {message.sourceFile && (
-                    <a
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                      href={message.sourceFile.downloadUrl}
-                      download={message.sourceFile.filename}
-                    >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-600">
-                        <Icon size={14}>
-                          <path d="M8 3h6l4 4v14H6V3z" />
-                          <path d="M14 3v4h4" />
-                        </Icon>
-                      </span>
-                      <span className="truncate">{message.sourceFile.filename}</span>
-                    </a>
+                    <div className="mt-3 grid gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyResponse(message.text)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <Icon size={14}>
+                            <rect x="9" y="9" width="10" height="10" rx="2" />
+                            <path d="M5 15V7a2 2 0 0 1 2-2h8" />
+                          </Icon>
+                          <span>Copier</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadAnswerPdf(relatedQuestion, message.text, message.sourceFile)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <Icon size={14}>
+                            <path d="M12 3v12" />
+                            <path d="m7 10 5 5 5-5" />
+                            <path d="M5 21h14" />
+                          </Icon>
+                          <span>PDF</span>
+                        </button>
+                        {message.questionId ? (
+                          <button
+                            type="button"
+                            onClick={() => void toggleSources(message)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Icon size={14}>
+                              <path d="M4 6h16" />
+                              <path d="M4 12h16" />
+                              <path d="M4 18h10" />
+                            </Icon>
+                            <span>{expandedSources[message.questionId] ? "Masquer les sources" : "Voir les sources"}</span>
+                          </button>
+                        ) : null}
+                        {message.sourceFile && (
+                          <a
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                            href={message.sourceFile.downloadUrl}
+                            download={message.sourceFile.filename}
+                          >
+                            <Icon size={14}>
+                              <path d="M8 3h6l4 4v14H6V3z" />
+                              <path d="M14 3v4h4" />
+                            </Icon>
+                            <span className="truncate">Document source</span>
+                          </a>
+                        )}
+                      </div>
+
+                      {message.questionId ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleFeedback(message.questionId!, "up")}
+                            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${feedbackByQuestionId[message.questionId] === "up" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"}`}
+                          >
+                            <Icon size={14}>
+                              <path d="M7 11v8" />
+                              <path d="M14 5.5 13 11h5.5a2 2 0 0 1 2 2v1a2 2 0 0 1-.2.9l-2.1 4.2a2 2 0 0 1-1.8 1.1H7V11l4.8-6.2a1 1 0 0 1 1.8.7Z" />
+                            </Icon>
+                            <span>Utile</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleFeedback(message.questionId!, "down")}
+                            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${feedbackByQuestionId[message.questionId] === "down" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"}`}
+                          >
+                            <Icon size={14}>
+                              <path d="M17 13V5" />
+                              <path d="M10 18.5 11 13H5.5a2 2 0 0 1-2-2v-1a2 2 0 0 1 .2-.9l2.1-4.2a2 2 0 0 1 1.8-1.1H17V13l-4.8 6.2a1 1 0 0 1-1.8-.7Z" />
+                            </Icon>
+                            <span>Non utile</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleReportResponse(relatedQuestion, message.text)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Icon size={14}>
+                              <path d="M12 9v4" />
+                              <path d="M12 17h.01" />
+                              <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+                            </Icon>
+                            <span>Signaler</span>
+                          </button>
+                        </div>
+                      ) : null}
+
+                      {message.role === "assistant" && relatedQuestion ? (
+                        <div className="rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Questions suggerees</div>
+                            {message.followUpSuggestions && message.followUpSuggestions.length > 0 ? (
+                              <div className="text-[11px] text-slate-400">{message.followUpSuggestions.length}</div>
+                            ) : null}
+                          </div>
+
+                          <div className="grid gap-1.5">
+                            {message.followUpStatus === "loading" ? (
+                              <div className="rounded-md bg-slate-50 px-2.5 py-2 text-xs text-slate-500">
+                                Chargement...
+                              </div>
+                            ) : message.followUpSuggestions && message.followUpSuggestions.length > 0 ? (
+                              message.followUpSuggestions.map((suggestion) => (
+                                <button
+                                  key={`${message.id}-${suggestion}`}
+                                  type="button"
+                                  onClick={() => void onAsk(suggestion)}
+                                  disabled={loading}
+                                  className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {suggestion}
+                                </button>
+                              ))
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {message.questionId && expandedSources[message.questionId] ? (
+                        <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Sources utilisees</div>
+                            <div className="text-[11px] text-slate-400">{message.sources?.length ?? 0} source(s)</div>
+                          </div>
+                          <div className="mt-3 grid gap-2">
+                            {message.questionId && sourcesLoadingByQuestionId[message.questionId] ? (
+                              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">Chargement des sources...</div>
+                            ) : message.sources && message.sources.length > 0 ? (
+                              message.sources.map((source, sourceIndex) => (
+                                <div key={`${source.documentId}-${sourceIndex}`} className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
+                                  <div className="text-xs font-bold text-slate-900">{source.title}</div>
+                                  {sourceMetaLabel(source) ? <div className="mt-1 text-[11px] font-medium text-slate-400">{sourceMetaLabel(source)}</div> : null}
+                                  <p className="mt-2 text-xs leading-5 text-slate-600">{source.excerpt || "Aucun extrait disponible."}</p>
+                                  <a href={`/user/chat/sources/${message.questionId}`} className="mt-2 inline-flex text-[11px] font-semibold text-red-600 hover:text-red-700">Consulter le detail des sources</a>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">Aucune source detaillee disponible.</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   )}
                   <div className="mt-1 text-[10px] opacity-70">{message.time}</div>
                 </div>
               </div>
             );
-          })}
+          }) : normalizedConversationSearch ? (
+            <div className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
+              Aucun message ne correspond a votre recherche.
+            </div>
+          ) : null}
 
           {loading && <div className="text-sm text-slate-400">IA en train de répondre...</div>}
           <div ref={bottomRef} />
         </div>
 
         <div className="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Mode de reponse</div>
+              <div className="mt-1 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setResponseMode("SHORT")}
+                  className={responseMode === "SHORT" ? "rounded-full border border-red-600 bg-red-600 px-3 py-1 text-[11px] font-bold text-white" : "rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-red-200 hover:text-red-600"}
+                >
+                  Court
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResponseMode("DETAILED")}
+                  className={responseMode === "DETAILED" ? "rounded-full border border-red-600 bg-red-600 px-3 py-1 text-[11px] font-bold text-white" : "rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-red-200 hover:text-red-600"}
+                >
+                  Detaille
+                </button>
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-400">{responseMode === "SHORT" ? "Synthese rapide" : "Reponse complete avec plus d'explications"}</div>
+          </div>
           <div className="flex items-end gap-2">
             <div className="relative flex-1">
               <textarea
@@ -944,7 +1534,7 @@ export default function AskQuestionPage() {
             <button
               onClick={() => void onAsk()}
               disabled={!question.trim() || (!conversationId && conversationBootstrapping)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
             >
               <Icon>
                 <path d="m22 2-10 10"/>
@@ -1038,6 +1628,9 @@ export default function AskQuestionPage() {
     </div>
   );
 }
+
+
+
 
 
 

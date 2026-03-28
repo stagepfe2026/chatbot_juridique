@@ -66,6 +66,7 @@ async def create_question(
             "questionPreview": _preview_text(payload.question, 120),
             "sourcesCount": len(response.sources),
             "hasSourceFile": response.sourceFile is not None,
+            "responseMode": payload.responseMode.value,
         },
     )
     return response

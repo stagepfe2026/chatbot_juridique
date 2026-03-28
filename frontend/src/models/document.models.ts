@@ -32,8 +32,17 @@ export interface DocumentSearchResult {
   excerpt: string;
   isFavored: boolean;
   downloadUrl: string;
+  fileType: string;
+  documentStatus: DocumentStatus;
   createdAt?: string | null;
   realizedAt?: string | null;
+}
+
+export interface DocumentSearchResponse {
+  items: DocumentSearchResult[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface DocumentFavoriteResponse {
