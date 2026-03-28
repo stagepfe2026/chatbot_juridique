@@ -41,14 +41,14 @@ export default function ConversationsListPage() {
         <p className="mt-2 text-sm font-medium text-slate-500">Suivi et tracabilite des echanges utilisateur/chatbot.</p>
       </div>
 
-      {loading && <div className="rounded-[28px] border border-white/80 bg-white/85 px-5 py-8 text-sm font-semibold text-slate-500 shadow-sm">Chargement des conversations...</div>}
+      {loading && <div className="rounded-[28px] border border-white/80 bg-white/85 px-5 py-8 text-sm font-semibold text-slate-500 shadow-lg">Chargement des conversations...</div>}
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
       {!loading && !error && conversations.length === 0 && <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/70 px-5 py-10 text-center text-sm font-semibold text-slate-500">Aucune conversation enregistree.</div>}
 
       {!loading && !error && conversations.length > 0 && (
         <div className="grid gap-4">
           {conversations.map((item) => (
-            <section className="rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-sm" key={item.id}>
+            <section className="rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-lg" key={item.id}>
               <div className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Question</div>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{item.question}</p>
               <div className="mt-5 text-sm font-black uppercase tracking-[0.2em] text-slate-400">Reponse</div>

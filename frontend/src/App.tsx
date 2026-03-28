@@ -1,9 +1,11 @@
 ﻿import { RouterProvider } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { router } from "./router";
+import { I18nProvider, useI18n } from "./i18n/I18nContext";
 
 function SessionExpiredScreen() {
   const { sessionExpiredMessage, dismissSessionExpired } = useAuth();
+  const { t } = useI18n();
 
   function handleReconnect() {
     dismissSessionExpired();
@@ -19,21 +21,21 @@ function SessionExpiredScreen() {
             <circle cx="12" cy="12" r="9" />
           </svg>
         </div>
-        <h1 className="mt-6 text-2xl font-bold tracking-tight text-[#0f172a]">Session terminee</h1>
+        <h1 className="mt-6 text-2xl font-bold tracking-tight text-[#0f172a]">{t("session.endedTitle")}</h1>
         <p className="mt-3 text-sm leading-7 text-slate-500">{sessionExpiredMessage}</p>
         <button
           type="button"
           onClick={handleReconnect}
           className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-[#DA3D20] px-6 text-sm font-semibold text-white transition hover:bg-[#C73519]"
         >
-          Se reconnecter
+          {t("session.reconnect")}
         </button>
       </div>
     </div>
   );
 }
 
-function AppContent() {
+function AppShell() {
   const { sessionExpired } = useAuth();
 
   return (
@@ -41,6 +43,14 @@ function AppContent() {
       <RouterProvider router={router} />
       {sessionExpired ? <SessionExpiredScreen /> : null}
     </>
+  );
+}
+
+function AppContent() {
+  return (
+    <I18nProvider>
+      <AppShell />
+    </I18nProvider>
   );
 }
 

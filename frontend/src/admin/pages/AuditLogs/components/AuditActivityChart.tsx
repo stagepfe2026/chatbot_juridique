@@ -9,7 +9,7 @@ export function AuditActivityChart({ points }: AuditActivityChartProps) {
   const yAxisMax = maxValue <= 4 ? 4 : Math.ceil(maxValue * 1.15);
 
   return (
-    <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-sm">
+    <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-lg">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-slate-900">Activite (7 derniers jours)</h2>
         <p className="text-xs text-slate-500">Vue synthetique des volumes journaliers</p>

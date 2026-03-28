@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
+
+
+def _generate_ticket_number(now: datetime) -> str:
+    return f"REC-{now.strftime('%Y%m%d')}-{uuid4().hex[:6].upper()}"
 
 
 @dataclass
@@ -19,6 +24,7 @@ class ClaimModel:
     is_reply_read_by_user: bool
     created_at: datetime
     updated_at: datetime
+    ticket_number: str | None = None
     id: str | None = None
 
     @classmethod
@@ -49,6 +55,7 @@ class ClaimModel:
             is_reply_read_by_user=True,
             created_at=now,
             updated_at=now,
+            ticket_number=_generate_ticket_number(now),
         )
 
     @classmethod
@@ -58,6 +65,7 @@ class ClaimModel:
         attachments = [item for item in attachments_raw if isinstance(item, dict)] if isinstance(attachments_raw, list) else []
         return cls(
             id=str(raw.get("_id")) if raw.get("_id") is not None else None,
+            ticket_number=str(raw.get("ticketNumber", "")).strip() or None,
             user_id=str(raw.get("userId", "")),
             user_email=str(raw.get("userEmail", "")),
             category=str(raw.get("category", "OTHER")),
@@ -76,6 +84,7 @@ class ClaimModel:
 
     def to_mongo_insert(self) -> dict[str, Any]:
         return {
+            "ticketNumber": self.ticket_number,
             "userId": self.user_id,
             "userEmail": self.user_email,
             "category": self.category,

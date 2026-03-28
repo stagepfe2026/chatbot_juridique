@@ -40,7 +40,7 @@ export function AuditStats({ total, success, failed, critical }: AuditStatsProps
       {cards.map((card) => (
         <article
           key={card.key}
-          className={`rounded-2xl border px-4 py-3 shadow-sm ${card.tone}`}
+          className={`rounded-2xl border px-4 py-3 shadow-lg ${card.tone}`}
         >
           <div className="flex items-center justify-between gap-3">
             <div>

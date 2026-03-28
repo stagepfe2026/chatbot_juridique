@@ -170,18 +170,61 @@ class UserRole(str, Enum):
     FINANCE_USER = "FINANCE_USER"
 
 
+class LoginHistoryEntry(BaseModel):
+    device: str
+    browser: str
+    location: str
+    lastSeenAt: datetime
+    isCurrent: bool = False
+    isSuspicious: bool = False
+
+
 class AuthUser(BaseModel):
     id: str
     nom: str
     prenom: str
     email: str
     role: UserRole
+    telephone: str = ""
+    profileImageUrl: str = ""
+    adresse: str = ""
+    dateNaissance: str = ""
+    direction: str = ""
+    service: str = ""
+    poste: str = ""
+    matricule: str = ""
+    bureau: str = ""
+    responsable: str = ""
+    membreDepuis: str = ""
+    languePreferee: str = "fr"
+    themePrefere: str = "light"
+    notificationsEmail: bool = True
+    notificationsSms: bool = False
+    twoFactorEnabled: bool = False
+    passwordUpdatedAt: datetime | None = None
+    activeSessionsCount: int = 0
+    loginHistory: list[LoginHistoryEntry] = Field(default_factory=list)
 
 
 class UpdateProfileRequest(BaseModel):
     nom: str = Field(min_length=1, max_length=120)
     prenom: str = Field(min_length=1, max_length=120)
     email: str = Field(min_length=3, max_length=255)
+    telephone: str = Field(min_length=1, max_length=60)
+    adresse: str = Field(min_length=1, max_length=255)
+    dateNaissance: str = Field(min_length=4, max_length=30)
+    direction: str = Field(min_length=1, max_length=180)
+    service: str = Field(min_length=1, max_length=180)
+    poste: str = Field(min_length=1, max_length=180)
+    matricule: str = Field(min_length=1, max_length=80)
+    bureau: str = Field(min_length=1, max_length=180)
+    responsable: str = Field(min_length=1, max_length=180)
+    membreDepuis: str = Field(min_length=4, max_length=30)
+    languePreferee: str = Field(min_length=2, max_length=10)
+    themePrefere: str = Field(min_length=4, max_length=10)
+    notificationsEmail: bool
+    notificationsSms: bool
+    twoFactorEnabled: bool
 
 
 class UpdatePasswordRequest(BaseModel):
@@ -198,6 +241,10 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     user: AuthUser
     sessionExpiresAt: datetime
+
+
+class DisconnectDevicesResponse(BaseModel):
+    closedSessions: int
 
 
 class ClaimCategory(str, Enum):
@@ -247,6 +294,7 @@ class ClaimReplyRequest(BaseModel):
 
 class ClaimOut(BaseModel):
     id: str
+    ticketNumber: str
     userId: str
     userEmail: str
     category: ClaimCategory
@@ -296,3 +344,5 @@ class AuditLogOut(BaseModel):
     ip: str
     timestamp: datetime
     details: AuditLogDetailsOut
+
+

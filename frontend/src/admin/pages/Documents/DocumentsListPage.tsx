@@ -140,7 +140,7 @@ export default function DocumentsListPage() {
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
 
         {/* Total */}
-        <div className="relative overflow-hidden rounded-[18px] border border-[#e8dfdc] bg-white px-4 py-1.5 shadow-sm">
+        <div className="relative overflow-hidden rounded-[18px] border border-[#e8dfdc] bg-white px-4 py-1.5 shadow-lg">
           <div className="absolute left-0 top-0 h-full w-1 bg-[#ef4444]" />
           <p className="text-[12px] font-medium text-[#7a6b66]">Total documents</p>
           <div className="mt-1 flex items-center gap-2">
@@ -152,7 +152,7 @@ export default function DocumentsListPage() {
         </div>
 
         {/* Indexed */}
-        <div className="relative overflow-hidden rounded-[18px] border border-[#e8dfdc] bg-white px-4 py-1.5 shadow-sm">
+        <div className="relative overflow-hidden rounded-[18px] border border-[#e8dfdc] bg-white px-4 py-1.5 shadow-lg">
           <div className="absolute left-0 top-0 h-full w-1 bg-[#C40C0C]" />
           <p className="text-[12px] font-medium text-[#7a6b66]">Documents indexés</p>
           <div className="mt-1 flex items-center gap-2">
@@ -164,7 +164,7 @@ export default function DocumentsListPage() {
         </div>
 
         {/* Failed */}
-        <div className="relative overflow-hidden rounded-[18px] border border-[#e8dfdc] bg-white px-4 py-1.5 shadow-sm">
+        <div className="relative overflow-hidden rounded-[18px] border border-[#e8dfdc] bg-white px-4 py-1.5 shadow-lg">
           <div className="absolute left-0 top-0 h-full w-1 bg-[#C44A3A]" />
           <p className="text-[12px] font-medium text-[#7a6b66]">Documents échoués</p>
           <div className="mt-1 flex items-center gap-2">

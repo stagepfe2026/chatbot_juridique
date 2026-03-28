@@ -52,6 +52,7 @@ export interface ClaimBinaryAttachment {
 
 export interface Claim {
   id: string;
+  ticketNumber?: string;
   userId: string;
   userEmail: string;
   category: ClaimCategory;

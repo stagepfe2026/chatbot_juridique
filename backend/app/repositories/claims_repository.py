@@ -76,6 +76,7 @@ class ClaimsRepository:
 
     def ensure_indexes(self) -> None:
         claims = get_claims_collection()
+        claims.create_index([("ticketNumber", 1)], unique=True, sparse=True)
         claims.create_index([("userId", 1), ("createdAt", -1)])
         claims.create_index([("status", 1), ("createdAt", -1)])
         claims.create_index([("userId", 1), ("isReplyReadByUser", 1), ("updatedAt", -1)])

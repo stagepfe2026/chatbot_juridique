@@ -19,12 +19,22 @@ def ensure_claim_indexes() -> None:
     _claims_repo.ensure_indexes()
 
 
+def _build_ticket_number_fallback(saved: ClaimModel) -> str:
+    if saved.ticket_number:
+        return saved.ticket_number
+    year = saved.created_at.year
+    raw = f"{saved.id or ''}{saved.created_at.isoformat()}"
+    serial = str(sum(ord(char) for char in raw) % 10000).zfill(4)
+    return f"REC-{year}-{serial}"
+
+
 def _to_claim_out(saved: ClaimModel) -> ClaimOut:
     category = ClaimCategory(saved.category) if saved.category in ClaimCategory._value2member_map_ else ClaimCategory.OTHER
     priority = ClaimPriority(saved.priority) if saved.priority in ClaimPriority._value2member_map_ else ClaimPriority.NORMAL
     status = ClaimStatus(saved.status) if saved.status in ClaimStatus._value2member_map_ else ClaimStatus.SUBMITTED
     return ClaimOut(
         id=saved.id or "",
+        ticketNumber=_build_ticket_number_fallback(saved),
         userId=saved.user_id,
         userEmail=saved.user_email,
         category=category,
@@ -74,6 +84,13 @@ def create_claim_for_user(*, user_id: str, user_email: str, payload: ClaimCreate
 
 def list_claims_for_user(*, user_id: str) -> list[ClaimOut]:
     return [_to_claim_out(model) for model in _claims_repo.list_claims_for_user(user_id)]
+
+
+def get_claim_for_user(*, claim_id: str, user_id: str) -> ClaimOut:
+    claim = _claims_repo.find_claim_by_id(claim_id)
+    if not claim or claim.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reclamation introuvable.")
+    return _to_claim_out(claim)
 
 
 def list_claims_for_admin() -> list[ClaimOut]:

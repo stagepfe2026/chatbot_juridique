@@ -123,7 +123,7 @@ function PriorityBadge({ priority }: { priority: ClaimPriority }) {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-[#ece4e1] bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-[#ece4e1] bg-white p-4 shadow-lg">
       <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#a0928c]">{title}</div>
       <div className="mt-3">{children}</div>
     </section>
@@ -144,7 +144,7 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="rounded-xl border border-[#e9e1de] bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+    <div className="rounded-xl border border-[#e9e1de] bg-white shadow-lg transition-shadow duration-200 hover:shadow-md">
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -300,7 +300,7 @@ export default function ClaimsManagementPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.45fr_0.6fr]">
-        <div className="rounded-[22px] border border-[#e9e1de] bg-white p-4 shadow-sm">
+        <div className="rounded-[22px] border border-[#e9e1de] bg-white p-4 shadow-lg">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-[#140a08]">Réclamations récentes</h2>
          
@@ -382,7 +382,7 @@ export default function ClaimsManagementPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[22px] border border-[#e9e1de] bg-white p-4 shadow-sm">
+          <div className="rounded-[22px] border border-[#e9e1de] bg-white p-4 shadow-lg">
             <h3 className="text-base font-bold text-[#140a08]">Réclamations critiques</h3>
             <p className="mt-1 text-xs text-[#7d706b]">
               Réclamations urgentes.
@@ -523,7 +523,7 @@ export default function ClaimsManagementPage() {
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
-              className="absolute right-3 top-3 z-10 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white"
+              className="absolute right-3 top-3 z-10 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow-lg transition hover:bg-white"
             >
               Fermer
             </button>

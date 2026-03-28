@@ -7,7 +7,7 @@ interface AuditTimelineProps {
 
 export function AuditTimeline({ logs }: AuditTimelineProps) {
   return (
-    <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-sm">
+    <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-lg">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-slate-900">Activite recente</h2>
       </div>

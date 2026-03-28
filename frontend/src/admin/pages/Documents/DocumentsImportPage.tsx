@@ -249,7 +249,7 @@ export default function DocumentsImportPage() {
                 />
 
                 <div className="flex flex-col items-center justify-center text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#DA3D20] shadow-sm">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#DA3D20] shadow-lg">
                     <svg
                       viewBox="0 0 24 24"
                       width="20"
@@ -343,7 +343,7 @@ export default function DocumentsImportPage() {
                 type="button"
                 onClick={onSubmit}
                 disabled={!canSubmit}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#DA3D20] px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#C73519] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#DA3D20] px-4 text-xs font-semibold text-white shadow-lg transition hover:bg-[#C73519] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? "Import en cours..." : "Importer et indexer le document"}
               </button>

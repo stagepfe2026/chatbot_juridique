@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+﻿from fastapi import APIRouter, Depends, Request
 
 from app.auth import get_current_user_from_request, require_role
 from app.models import UserRole
@@ -16,6 +16,7 @@ from app.services.claims_notifications import claims_notifications_hub
 from app.services.claims_service import (
     count_user_unread_claim_replies,
     create_claim_for_user,
+    get_claim_for_user,
     list_claims_for_admin,
     list_claims_for_user,
     mark_user_claim_replies_as_read,
@@ -90,6 +91,14 @@ def mark_my_claim_replies_read(
 ):
     mark_user_claim_replies_as_read(user_id=current_user.id)
     return ClaimUnreadCountOut(count=count_user_unread_claim_replies(user_id=current_user.id))
+
+
+@router.get("/me/{claim_id}", response_model=ClaimOut)
+def get_my_claim(
+    claim_id: str,
+    current_user: AuthUser = Depends(get_current_user_from_request),
+):
+    return get_claim_for_user(claim_id=claim_id, user_id=current_user.id)
 
 
 @admin_router.get("", response_model=list[ClaimOut])

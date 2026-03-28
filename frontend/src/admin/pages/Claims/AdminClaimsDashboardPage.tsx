@@ -6,7 +6,7 @@ import { formatClaimDate, formatRelativeHours, priorityBadgeClass, slaBadgeClass
 
 function KpiCard({ label, value, tone }: { label: string; value: string | number; tone: string }) {
   return (
-    <div className={`rounded-3xl border p-5 shadow-sm ${tone}`}>
+    <div className={`rounded-3xl border p-5 shadow-lg ${tone}`}>
       <div className="text-sm font-medium">{label}</div>
       <div className="mt-3 text-3xl font-bold tracking-tight">{value}</div>
     </div>
@@ -41,7 +41,7 @@ export default function AdminClaimsDashboardPage() {
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-600">Pilotage support</p>
         <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -63,7 +63,7 @@ export default function AdminClaimsDashboardPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_380px]">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Dernieres reclamations</h2>
             <Link to="/admin/claims" className="text-sm font-semibold text-red-600">Tout voir</Link>
@@ -85,7 +85,7 @@ export default function AdminClaimsDashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg">
           <h2 className="text-lg font-semibold text-slate-900">Indicateurs SLA</h2>
           <div className="mt-4 grid gap-3">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

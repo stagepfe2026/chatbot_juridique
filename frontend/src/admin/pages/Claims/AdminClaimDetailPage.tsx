@@ -66,7 +66,7 @@ export default function AdminClaimDetailPage() {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_380px]">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <Link to="/admin/claims" className="text-sm font-semibold text-red-600">Retour a la liste</Link>
@@ -130,7 +130,7 @@ export default function AdminClaimDetailPage() {
 
       <aside className="grid gap-4">
         {claim ? (
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg">
             <h2 className="text-lg font-semibold text-slate-900">Metadonnees</h2>
             <div className="mt-4 grid gap-4 text-sm text-slate-600">
               <div>

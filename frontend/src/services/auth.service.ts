@@ -1,5 +1,5 @@
 import { httpClient } from "./httpClient";
-import type { AuthUser, LoginRequest, LoginResponse, UpdatePasswordRequest, UpdateProfileRequest } from "../models/auth.models";
+import type { AuthUser, DisconnectDevicesResponse, LoginRequest, LoginResponse, UpdatePasswordRequest, UpdateProfileRequest } from "../models/auth.models";
 
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
   const res = await httpClient.post<LoginResponse>("/auth/login", payload);
@@ -22,4 +22,9 @@ export async function updateCurrentUser(payload: UpdateProfileRequest): Promise<
 
 export async function updateCurrentUserPassword(payload: UpdatePasswordRequest): Promise<void> {
   await httpClient.put("/auth/me/password", payload);
+}
+
+export async function disconnectAllDevices(): Promise<DisconnectDevicesResponse> {
+  const res = await httpClient.post<DisconnectDevicesResponse>("/auth/me/disconnect-all-devices");
+  return res.data;
 }

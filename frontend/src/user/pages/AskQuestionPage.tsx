@@ -7,7 +7,6 @@ import type { ConversationMessage, ConversationSummary } from "../../models/conv
 import {
   archiveConversation,
   askQuestion,
-  getSources,
   deleteConversation,
   getConversationMessages,
   getQuestionSuggestions,
@@ -16,6 +15,7 @@ import {
   restoreConversation,
 } from "../../services/user.service";
 import { publishSnackbar } from "../../utils/snackbarBus";
+import { useI18n } from "../../i18n/I18nContext";
 
 type ChatMessage = {
   id: string;
@@ -25,11 +25,19 @@ type ChatMessage = {
   questionId?: string | null;
   sourceFile?: SourceFile | null;
   sources?: SourceItem[];
-  followUpSuggestions?: string[];
-  followUpStatus?: "idle" | "loading" | "ready" | "error";
 };
 const CHAT_FEEDBACK_KEY = "chat-message-feedback";
 const CHAT_CLAIM_DRAFT_KEY = "chat-claim-draft";
+
+type UiLanguage = "fr" | "en" | "ar";
+
+const askQuestionCopy = {
+  fr: { today: "Aujourd'hui", yesterday: "Hier", daysAgo: (n: number) => `Il y a ${n} jours`, structuredResponse: "Reponse structuree", row: "ligne", rows: "lignes", conversationFileFallback: "conversation-juridique", answerFileFallback: "reponse-juridique", page: "Page", conversation: "Conversation", exportedAt: "Exportee le", user: "Utilisateur", assistant: "Assistant", sourceDocument: "Document source", legalAssistant: "Assistant Juridique", conversationExport: "Export de conversation", exportDate: "Date d'export", messageCount: "Nombre de messages", exportedAnswerTitle: "Assistant Juridique - Reponse exportee", generatedOn: "Genere le", question: "Question", response: "Reponse", questionUnavailable: "Question non disponible.", responseUnavailable: "Reponse non disponible.", newConversation: "Nouvelle conversation", myArchives: "Mes archives", activeConversations: "Conversations actives", actionsFor: "Actions pour", rename: "Renommer", archive: "Archiver", archiving: "Archivage...", delete: "Supprimer", deleting: "Suppression...", noActiveConversations: "Aucune conversation active pour le moment.", loadConversationError: "Erreur de chargement de la conversation.", conversationArchived: "Conversation archivee.", conversationRestored: "Conversation restauree.", conversationRenamed: "Conversation renommee.", deleteConfirm: (title: string) => `Supprimer la conversation ${title} ?`, conversationDeleted: "Conversation supprimee.", responseCopied: "Reponse copiee.", copyUnavailable: "Copie impossible sur ce navigateur.", positiveThanks: "Merci pour votre retour positif.", feedbackSaved: "Retour enregistre.", nothingToExport: "Aucune conversation a exporter.", conversationPdfExported: "Conversation exportee en PDF.", conversationTextExported: "Conversation exportee en texte.", reportSubject: "Signalement reponse chatbot", askedQuestion: "Question posee", answerToReview: "Reponse a verifier", claimDraftPrepared: "Un brouillon de reclamation a ete prepare.", sourcesLoadError: "Impossible de charger les sources.", copy: "Copier", hideSources: "Masquer les sources", showSources: "Voir les sources", helpful: "Utile", notHelpful: "Non utile", report: "Signaler", suggestedQuestions: "Questions suggerees", loading: "Chargement...", sourcesUsed: "Sources utilisees", sourceCount: (n: number) => `${n} source(s)`, loadingSources: "Chargement des sources...", noExcerpt: "Aucun extrait disponible.", sourceDetails: "Consulter le detail des sources", noDetailedSources: "Aucune source detaillee disponible.", noSearchResults: "Aucun message ne correspond a votre recherche.", aiResponding: "IA en train de repondre...", responseMode: "Mode de reponse", short: "Court", detailed: "Detaille", shortSummary: "Synthese rapide", detailedSummary: "Reponse complete avec plus d'explications", askPlaceholder: "Posez votre question...", suggestionsAria: "Suggestions automatiques", suggestionsLoading: "Recherche de suggestions...", noSuggestions: "Aucune suggestion disponible pour le moment.", renameConversation: "Renommer la conversation", renameHint: "Donnez un nom plus clair a cette conversation.", newName: "Nouveau nom", cancel: "Annuler", saving: "Enregistrement...", save: "Enregistrer", archivedCount: (n: number) => `${n} conversation(s) archivee(s)`, close: "Fermer", noArchived: "Aucune conversation archivee.", restoring: "Restauration...", restore: "Restaurer", searchConversation: "Rechercher dans la conversation" },
+  en: { today: "Today", yesterday: "Yesterday", daysAgo: (n: number) => `${n} days ago`, structuredResponse: "Structured response", row: "row", rows: "rows", conversationFileFallback: "legal-conversation", answerFileFallback: "legal-answer", page: "Page", conversation: "Conversation", exportedAt: "Exported on", user: "User", assistant: "Assistant", sourceDocument: "Source document", legalAssistant: "Legal Assistant", conversationExport: "Conversation export", exportDate: "Export date", messageCount: "Message count", exportedAnswerTitle: "Legal Assistant - Exported answer", generatedOn: "Generated on", question: "Question", response: "Response", questionUnavailable: "Question unavailable.", responseUnavailable: "Response unavailable.", newConversation: "New conversation", myArchives: "My archives", activeConversations: "Active conversations", actionsFor: "Actions for", rename: "Rename", archive: "Archive", archiving: "Archiving...", delete: "Delete", deleting: "Deleting...", noActiveConversations: "No active conversation for now.", loadConversationError: "Failed to load the conversation.", conversationArchived: "Conversation archived.", conversationRestored: "Conversation restored.", conversationRenamed: "Conversation renamed.", deleteConfirm: (title: string) => `Delete conversation ${title}?`, conversationDeleted: "Conversation deleted.", responseCopied: "Response copied.", copyUnavailable: "Copy is not available in this browser.", positiveThanks: "Thanks for your positive feedback.", feedbackSaved: "Feedback saved.", nothingToExport: "No conversation to export.", conversationPdfExported: "Conversation exported as PDF.", conversationTextExported: "Conversation exported as text.", reportSubject: "Chatbot response report", askedQuestion: "Asked question", answerToReview: "Response to review", claimDraftPrepared: "A claim draft has been prepared.", sourcesLoadError: "Unable to load sources.", copy: "Copy", hideSources: "Hide sources", showSources: "Show sources", helpful: "Helpful", notHelpful: "Not helpful", report: "Report", suggestedQuestions: "Suggested questions", loading: "Loading...", sourcesUsed: "Sources used", sourceCount: (n: number) => `${n} source(s)`, loadingSources: "Loading sources...", noExcerpt: "No excerpt available.", sourceDetails: "View source details", noDetailedSources: "No detailed sources available.", noSearchResults: "No message matches your search.", aiResponding: "AI is answering...", responseMode: "Response mode", short: "Short", detailed: "Detailed", shortSummary: "Quick summary", detailedSummary: "Complete answer with more explanations", askPlaceholder: "Ask your question...", suggestionsAria: "Automatic suggestions", suggestionsLoading: "Searching suggestions...", noSuggestions: "No suggestions available right now.", renameConversation: "Rename conversation", renameHint: "Give this conversation a clearer name.", newName: "New name", cancel: "Cancel", saving: "Saving...", save: "Save", archivedCount: (n: number) => `${n} archived conversation(s)`, close: "Close", noArchived: "No archived conversation.", restoring: "Restoring...", restore: "Restore", searchConversation: "Search within the conversation" },
+  ar: { today: "اليوم", yesterday: "امس", daysAgo: (n: number) => `قبل ${n} يوم`, structuredResponse: "اجابة منظمة", row: "سطر", rows: "اسطر", conversationFileFallback: "legal-conversation", answerFileFallback: "legal-answer", page: "صفحة", conversation: "المحادثة", exportedAt: "تم التصدير في", user: "المستخدم", assistant: "المساعد", sourceDocument: "الوثيقة المصدر", legalAssistant: "المساعد القانوني", conversationExport: "تصدير المحادثة", exportDate: "تاريخ التصدير", messageCount: "عدد الرسائل", exportedAnswerTitle: "المساعد القانوني - اجابة مصدرة", generatedOn: "تم الانشاء في", question: "السؤال", response: "الاجابة", questionUnavailable: "السؤال غير متوفر.", responseUnavailable: "الاجابة غير متوفرة.", newConversation: "محادثة جديدة", myArchives: "الارشيف", activeConversations: "المحادثات النشطة", actionsFor: "اجراءات", rename: "اعادة التسمية", archive: "ارشفة", archiving: "جار الارشفة...", delete: "حذف", deleting: "جار الحذف...", noActiveConversations: "لا توجد محادثات نشطة حاليا.", loadConversationError: "تعذر تحميل المحادثة.", conversationArchived: "تمت ارشفة المحادثة.", conversationRestored: "تمت استعادة المحادثة.", conversationRenamed: "تمت اعادة تسمية المحادثة.", deleteConfirm: (title: string) => `حذف المحادثة ${title}؟`, conversationDeleted: "تم حذف المحادثة.", responseCopied: "تم نسخ الاجابة.", copyUnavailable: "النسخ غير متاح في هذا المتصفح.", positiveThanks: "شكرا على تقييمك الايجابي.", feedbackSaved: "تم حفظ التقييم.", nothingToExport: "لا توجد محادثة للتصدير.", conversationPdfExported: "تم تصدير المحادثة PDF.", conversationTextExported: "تم تصدير المحادثة كنص.", reportSubject: "تبليغ عن جواب الشاتبوت", askedQuestion: "السؤال المطروح", answerToReview: "الاجابة المطلوب التحقق منها", claimDraftPrepared: "تم اعداد مسودة شكاية.", sourcesLoadError: "تعذر تحميل المصادر.", copy: "نسخ", hideSources: "اخفاء المصادر", showSources: "عرض المصادر", helpful: "مفيد", notHelpful: "غير مفيد", report: "تبليغ", suggestedQuestions: "اسئلة مقترحة", loading: "جار التحميل...", sourcesUsed: "المصادر المستعملة", sourceCount: (n: number) => `${n} مصدر`, loadingSources: "جار تحميل المصادر...", noExcerpt: "لا يوجد مقتطف متاح.", sourceDetails: "عرض تفاصيل المصادر", noDetailedSources: "لا توجد مصادر مفصلة.", noSearchResults: "لا توجد رسالة تطابق بحثك.", aiResponding: "الذكاء الاصطناعي يجيب...", responseMode: "وضع الاجابة", short: "قصير", detailed: "مفصل", shortSummary: "خلاصة سريعة", detailedSummary: "اجابة كاملة مع شروحات اكثر", askPlaceholder: "اطرح سؤالك...", suggestionsAria: "اقتراحات تلقائية", suggestionsLoading: "جار البحث عن اقتراحات...", noSuggestions: "لا توجد اقتراحات حاليا.", renameConversation: "اعادة تسمية المحادثة", renameHint: "امنح هذه المحادثة اسما اوضح.", newName: "اسم جديد", cancel: "الغاء", saving: "جار الحفظ...", save: "حفظ", archivedCount: (n: number) => `${n} محادثة مؤرشفة`, close: "اغلاق", noArchived: "لا توجد محادثات مؤرشفة.", restoring: "جار الاستعادة...", restore: "استعادة", searchConversation: "ابحث داخل المحادثة" },
+} as const;
+
+type AskQuestionLabels = (typeof askQuestionCopy)[UiLanguage];
 
 function Icon({ children, size = 16 }: { children: ReactNode; size?: number }) {
   return (
@@ -50,11 +58,11 @@ function Icon({ children, size = 16 }: { children: ReactNode; size?: number }) {
   );
 }
 
-function nowAsTime() {
-  return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+function nowAsTime(locale: string) {
+  return new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDayLabel(dateString: string): string {
+function formatDayLabel(dateString: string, labels: AskQuestionLabels = askQuestionCopy.fr): string {
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return "";
 
@@ -63,9 +71,9 @@ function formatDayLabel(dateString: string): string {
   const startTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const diffDays = Math.floor((startToday.getTime() - startTarget.getTime()) / 86_400_000);
 
-  if (diffDays <= 0) return "Aujourd'hui";
-  if (diffDays === 1) return "Hier";
-  return `Il y a ${diffDays} jours`;
+  if (diffDays <= 0) return labels.today;
+  if (diffDays === 1) return labels.yesterday;
+  return labels.daysAgo(diffDays);
 }
 
 function sanitizeAnswerText(text: string): string {
@@ -127,7 +135,7 @@ function renderHighlightedText(text: string, searchQuery: string): ReactNode {
   );
 }
 
-function renderAssistantContent(text: string, searchQuery = ""): ReactNode {
+function renderAssistantContent(text: string, searchQuery = "", labels: AskQuestionLabels = askQuestionCopy.fr): ReactNode {
   const lines = String(text ?? "").replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -154,11 +162,11 @@ function renderAssistantContent(text: string, searchQuery = ""): ReactNode {
       const rows = tableLines.slice(2).map(splitMarkdownRow).filter((row) => row.some(Boolean));
 
       blocks.push(
-        <div key={`table-${blocks.length}`} className="my-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div key={`table-${blocks.length}`} className="my-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
           <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2.5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reponse structuree</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.structuredResponse}</div>
             <div className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200">
-              {rows.length} ligne{rows.length > 1 ? "s" : ""}
+              {rows.length} {rows.length > 1 ? labels.rows : labels.row}
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -246,33 +254,16 @@ function renderAssistantContent(text: string, searchQuery = ""): ReactNode {
   return <Fragment>{blocks}</Fragment>;
 }
 
-function fromConversationMessages(messages: ConversationMessage[]): ChatMessage[] {
+function fromConversationMessages(messages: ConversationMessage[], locale: string): ChatMessage[] {
   return messages.map((item) => ({
     id: item.id,
     role: item.role,
     text: item.role === "assistant" ? sanitizeAnswerText(item.content) : item.content,
-    time: new Date(item.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+    time: new Date(item.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
     questionId: item.questionId ?? null,
     sourceFile: item.sourceFile ?? null,
     sources: [],
-    followUpSuggestions: [],
-    followUpStatus: item.role === "assistant" ? "idle" : "ready",
   }));
-}
-
-function normalizeFollowUpSuggestions(sourceQuestion: string, items: string[], limit = 3): string[] {
-  const normalizedSource = sourceQuestion.trim().toLocaleLowerCase();
-  const unique = new Set<string>();
-
-  for (const item of items) {
-    const next = item.trim();
-    if (!next) continue;
-    if (next.toLocaleLowerCase() === normalizedSource) continue;
-    unique.add(next);
-    if (unique.size >= limit) break;
-  }
-
-  return [...unique];
 }
 
 function countTypedWords(value: string): number {
@@ -289,12 +280,12 @@ function slugifyFilenamePart(value: string): string {
 }
 
 function buildPdfFilename(question: string): string {
-  const base = slugifyFilenamePart(question).slice(0, 60) || "reponse-juridique";
+  const base = slugifyFilenamePart(question).slice(0, 60) || askQuestionCopy.fr.answerFileFallback;
   return `${base}-${new Date().toISOString().slice(0, 10)}.pdf`;
 }
 
 function buildConversationExportFilename(title: string, extension: "pdf" | "txt"): string {
-  const base = slugifyFilenamePart(title).slice(0, 60) || "conversation-juridique";
+  const base = slugifyFilenamePart(title).slice(0, 60) || askQuestionCopy.fr.conversationFileFallback;
   return `${base}-${new Date().toISOString().slice(0, 10)}.${extension}`;
 }
 
@@ -311,11 +302,6 @@ function readFeedbackStore(): Record<string, "up" | "down"> {
 function writeFeedbackStore(value: Record<string, "up" | "down">): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(CHAT_FEEDBACK_KEY, JSON.stringify(value));
-}
-
-function sourceMetaLabel(source: SourceItem): string {
-  const parts = [source.section, source.page ? `Page ${source.page}` : null].filter(Boolean);
-  return parts.join(" ? ");
 }
 
 type PdfAnswerBlock =
@@ -396,16 +382,16 @@ function downloadFile(filename: string, content: BlobPart, mimeType: string): vo
   window.URL.revokeObjectURL(url);
 }
 
-function downloadConversationText(title: string, messages: ChatMessage[]): void {
-  const exportedAt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(new Date());
+function downloadConversationText(title: string, messages: ChatMessage[], locale: string, labels: AskQuestionLabels = askQuestionCopy.fr): void {
+  const exportedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short" }).format(new Date());
   const lines = [
-    `Conversation : ${title}`,
-    `Exportee le : ${exportedAt}`,
+    `${labels.conversation} : ${title}`,
+    `${labels.exportedAt} : ${exportedAt}`,
     "",
     ...messages.flatMap((message) => [
-      `[${message.time}] ${message.role === "user" ? "Utilisateur" : "Assistant"}`,
+      `[${message.time}] ${message.role === "user" ? labels.user : labels.assistant}`,
       message.text,
-      message.sourceFile?.filename ? `Document source : ${message.sourceFile.filename}` : "",
+      message.sourceFile?.filename ? `${labels.sourceDocument} : ${message.sourceFile.filename}` : "",
       "",
     ]),
   ];
@@ -413,14 +399,14 @@ function downloadConversationText(title: string, messages: ChatMessage[]): void 
   downloadFile(buildConversationExportFilename(title, "txt"), lines.join("\n"), "text/plain;charset=utf-8");
 }
 
-function downloadConversationPdf(title: string, messages: ChatMessage[]): void {
+function downloadConversationPdf(title: string, messages: ChatMessage[], locale: string, labels: AskQuestionLabels = askQuestionCopy.fr): void {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 18;
   const contentWidth = pageWidth - margin * 2;
-  const generatedAt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(new Date());
-  const safeTitle = title || "Conversation juridique";
+  const generatedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short" }).format(new Date());
+  const safeTitle = title || labels.conversationFileFallback;
   let cursorY = 42;
 
   const toConversationParagraphs = (text: string): string[] => {
@@ -441,7 +427,7 @@ function downloadConversationPdf(title: string, messages: ChatMessage[]): void {
     doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14);
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105);
-    doc.text("Assistant Juridique", margin, 12);
+    doc.text(labels.legalAssistant, margin, 12);
   };
 
   const addPage = () => {
@@ -475,7 +461,7 @@ function downloadConversationPdf(title: string, messages: ChatMessage[]): void {
 
     doc.setFontSize(10);
     doc.setTextColor(30, 41, 59);
-    doc.text(message.role === "user" ? "Utilisateur" : "Assistant", margin, cursorY);
+    doc.text(message.role === "user" ? labels.user : labels.assistant, margin, cursorY);
 
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
@@ -492,7 +478,7 @@ function downloadConversationPdf(title: string, messages: ChatMessage[]): void {
     });
 
     if (message.sourceFile?.filename) {
-      writeParagraph(`Document source : ${message.sourceFile.filename}`, 9.5, [100, 116, 139]);
+      writeParagraph(`${labels.sourceDocument} : ${message.sourceFile.filename}`, 9.5, [100, 116, 139]);
     }
 
     cursorY += 4;
@@ -502,15 +488,15 @@ function downloadConversationPdf(title: string, messages: ChatMessage[]): void {
 
   doc.setFontSize(16);
   doc.setTextColor(15, 23, 42);
-  doc.text("Export de conversation", margin, 28);
+  doc.text(labels.conversationExport, margin, 28);
 
   doc.setFontSize(11);
   const titleLines = doc.splitTextToSize(safeTitle, contentWidth);
   doc.text(titleLines, margin, 36);
 
   cursorY = 48;
-  writeParagraph(`Date d'export : ${generatedAt}`, 9.5, [71, 85, 105]);
-  writeParagraph(`Nombre de messages : ${messages.length}`, 9.5, [71, 85, 105]);
+  writeParagraph(`${labels.exportDate} : ${generatedAt}`, 9.5, [71, 85, 105]);
+  writeParagraph(`${labels.messageCount} : ${messages.length}`, 9.5, [71, 85, 105]);
   cursorY += 2;
 
   messages.forEach((message) => {
@@ -522,13 +508,13 @@ function downloadConversationPdf(title: string, messages: ChatMessage[]): void {
     doc.setPage(page);
     doc.setFontSize(8.5);
     doc.setTextColor(148, 163, 184);
-    doc.text(`Page ${page} / ${totalPages}`, pageWidth - margin, pageHeight - 8.5, { align: "right" });
+    doc.text(`${labels.page} ${page} / ${totalPages}`, pageWidth - margin, pageHeight - 8.5, { align: "right" });
   }
 
   doc.save(buildConversationExportFilename(title, "pdf"));
 }
 
-function downloadAnswerPdf(question: string, answer: string, sourceFile?: SourceFile | null): void {
+function downloadAnswerPdf(question: string, answer: string, sourceFile?: SourceFile | null, locale = "fr-FR", labels: AskQuestionLabels = askQuestionCopy.fr): void {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -641,24 +627,24 @@ function downloadAnswerPdf(question: string, answer: string, sourceFile?: Source
   doc.roundedRect(margin, 10, contentWidth, 18, 4, 4, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
-  doc.text("Assistant Juridique - Reponse exportee", margin + 4, 21);
+  doc.text(labels.exportedAnswerTitle, margin + 4, 21);
 
   doc.setTextColor(51, 65, 85);
   doc.setFontSize(10);
   doc.text(
-    `Genere le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(new Date())}`,
+    `${labels.generatedOn} ${new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short" }).format(new Date())}`,
     margin,
     36,
   );
 
   cursorY = 46;
-  writeSectionLabel("Question");
-  writeParagraph(question || "Question non disponible.");
+  writeSectionLabel(labels.question);
+  writeParagraph(question || labels.questionUnavailable);
 
   cursorY += 2;
-  writeSectionLabel("Reponse");
+  writeSectionLabel(labels.response);
   if (!blocks.length) {
-    writeParagraph(answer || "Reponse non disponible.");
+    writeParagraph(answer || labels.responseUnavailable);
   } else {
     blocks.forEach((block) => {
       if (block.type === "paragraph") {
@@ -678,7 +664,7 @@ function downloadAnswerPdf(question: string, answer: string, sourceFile?: Source
 
   if (sourceFile?.filename) {
     cursorY += 2;
-    writeSectionLabel("Document source");
+    writeSectionLabel(labels.sourceDocument);
     writeParagraph(sourceFile.filename, 10, [51, 65, 85]);
   }
 
@@ -687,6 +673,8 @@ function downloadAnswerPdf(question: string, answer: string, sourceFile?: Source
 
 export default function AskQuestionPage() {
   const navigate = useNavigate();
+  const { language, locale } = useI18n();
+  const labels: AskQuestionLabels = askQuestionCopy[language as UiLanguage];
   const [question, setQuestion] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -711,8 +699,6 @@ export default function AskQuestionPage() {
   const [responseMode, setResponseMode] = useState<ResponseMode>("DETAILED");
   const [conversationSearch, setConversationSearch] = useState("");
   const [feedbackByQuestionId, setFeedbackByQuestionId] = useState<Record<string, "up" | "down">>({});
-  const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
-  const [sourcesLoadingByQuestionId, setSourcesLoadingByQuestionId] = useState<Record<string, boolean>>({});
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -775,20 +761,6 @@ export default function AskQuestionPage() {
     };
   }, [question]);
 
-  useEffect(() => {
-    const targetIndex = messages.findIndex((message, index) => {
-      if (message.role !== "assistant" || message.followUpStatus !== "idle") return false;
-      return Boolean([...messages.slice(0, index)].reverse().find((item) => item.role === "user")?.text.trim());
-    });
-
-    if (targetIndex < 0) return;
-    const targetMessage = messages[targetIndex];
-    const relatedQuestion = [...messages.slice(0, targetIndex)].reverse().find((item) => item.role === "user")?.text ?? "";
-    if (!targetMessage) return;
-
-    loadFollowUpSuggestions(targetMessage.id, relatedQuestion);
-  }, [messages]);
-
   const visibleHistory = useMemo(
     () =>
       [...historyItems]
@@ -822,7 +794,7 @@ export default function AskQuestionPage() {
     const firstUserMessage = messages.find((message) => message.role === "user")?.text.trim();
     if (firstUserMessage) return firstUserMessage.slice(0, 80);
 
-    return "conversation-juridique";
+    return labels.conversationFileFallback;
   }, [activeHistoryId, historyItems, messages]);
 
   function resetSuggestions() {
@@ -842,41 +814,6 @@ export default function AskQuestionPage() {
     setActiveHistoryId(null);
   }
 
-  function loadFollowUpSuggestions(messageId: string, sourceQuestion: string) {
-    const trimmedQuestion = sourceQuestion.trim();
-    if (countTypedWords(trimmedQuestion) < 3) {
-      setMessages((current) =>
-        current.map((item) =>
-          item.id === messageId ? { ...item, followUpSuggestions: [], followUpStatus: "ready" } : item,
-        ),
-      );
-      return;
-    }
-
-    setMessages((current) =>
-      current.map((item) => (item.id === messageId ? { ...item, followUpStatus: "loading" } : item)),
-    );
-
-    void getQuestionSuggestions(trimmedQuestion, 3)
-      .then((items) => {
-        const nextSuggestions = normalizeFollowUpSuggestions(trimmedQuestion, items, 3);
-        setMessages((current) =>
-          current.map((item) =>
-            item.id === messageId
-              ? { ...item, followUpSuggestions: nextSuggestions, followUpStatus: "ready" }
-              : item,
-          ),
-        );
-      })
-      .catch(() => {
-        setMessages((current) =>
-          current.map((item) =>
-            item.id === messageId ? { ...item, followUpSuggestions: [], followUpStatus: "error" } : item,
-          ),
-        );
-      });
-  }
-
   async function openHistoryItem(item: ConversationSummary) {
     try {
       setError(null);
@@ -885,9 +822,9 @@ export default function AskQuestionPage() {
       setConversationSearch("");
       resetSuggestions();
       const data = await getConversationMessages(item.id);
-      setMessages(fromConversationMessages(data));
+      setMessages(fromConversationMessages(data, locale));
     } catch {
-      setError("Erreur de chargement de la conversation.");
+      setError(labels.loadConversationError);
     }
   }
 
@@ -905,7 +842,7 @@ export default function AskQuestionPage() {
       if (activeHistoryId === target.id || conversationId === target.id) {
         startNewQuestion();
       }
-      publishSnackbar({ variant: "success", message: "Conversation archivee." });
+      publishSnackbar({ variant: "success", message: labels.conversationArchived });
     } finally {
       setArchivingId(null);
     }
@@ -922,7 +859,7 @@ export default function AskQuestionPage() {
             : item,
         ),
       );
-      publishSnackbar({ variant: 'success', message: 'Conversation restauree.' });
+      publishSnackbar({ variant: "success", message: labels.conversationRestored });
     } finally {
       setArchivingId(null);
     }
@@ -951,7 +888,7 @@ export default function AskQuestionPage() {
       setRenameModalOpen(false);
       setRenameTarget(null);
       setRenameValue('');
-      publishSnackbar({ variant: 'success', message: 'Conversation renommee.' });
+      publishSnackbar({ variant: "success", message: labels.conversationRenamed });
     } finally {
       setRenamingId(null);
     }
@@ -959,7 +896,7 @@ export default function AskQuestionPage() {
 
 
   async function handleDeleteConversation(target: ConversationSummary) {
-    const ok = window.confirm('Supprimer la conversation ' + target.title + ' ?');
+    const ok = window.confirm(labels.deleteConfirm(target.title));
     if (!ok) return;
     try {
       setDeletingId(target.id);
@@ -969,7 +906,7 @@ export default function AskQuestionPage() {
       if (activeHistoryId === target.id || conversationId === target.id) {
         startNewQuestion();
       }
-      publishSnackbar({ variant: 'success', message: 'Conversation supprimee.' });
+      publishSnackbar({ variant: "success", message: labels.conversationDeleted });
     } finally {
       setDeletingId(null);
     }
@@ -979,9 +916,9 @@ export default function AskQuestionPage() {
   async function handleCopyResponse(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      publishSnackbar({ variant: "success", message: "Reponse copiee." });
+      publishSnackbar({ variant: "success", message: labels.responseCopied });
     } catch {
-      publishSnackbar({ variant: "warning", message: "Copie impossible sur ce navigateur." });
+      publishSnackbar({ variant: "warning", message: labels.copyUnavailable });
     }
   }
 
@@ -996,23 +933,23 @@ export default function AskQuestionPage() {
       writeFeedbackStore(next);
       return next;
     });
-    publishSnackbar({ variant: "success", message: value === "up" ? "Merci pour votre retour positif." : "Retour enregistre." });
+    publishSnackbar({ variant: "success", message: value === "up" ? labels.positiveThanks : labels.feedbackSaved });
   }
 
   function handleExportConversation(format: "pdf" | "txt") {
     if (messages.length === 0) {
-      publishSnackbar({ variant: "warning", message: "Aucune conversation a exporter." });
+      publishSnackbar({ variant: "warning", message: labels.nothingToExport });
       return;
     }
 
     if (format === "pdf") {
-      downloadConversationPdf(activeConversationTitle, messages);
-      publishSnackbar({ variant: "success", message: "Conversation exportee en PDF." });
+      downloadConversationPdf(activeConversationTitle, messages, locale, labels);
+      publishSnackbar({ variant: "success", message: labels.conversationPdfExported });
       return;
     }
 
-    downloadConversationText(activeConversationTitle, messages);
-    publishSnackbar({ variant: "success", message: "Conversation exportee en texte." });
+    downloadConversationText(activeConversationTitle, messages, locale, labels);
+    publishSnackbar({ variant: "success", message: labels.conversationTextExported });
   }
 
   function handleReportResponse(questionText: string, answerText: string) {
@@ -1022,42 +959,17 @@ export default function AskQuestionPage() {
         JSON.stringify({
           category: "CHATBOT",
           priority: "NORMAL",
-          subject: `Signalement reponse chatbot - ${questionText.slice(0, 80)}`,
-          description: `Question posee : ${questionText}
+          subject: `${labels.reportSubject} - ${questionText.slice(0, 80)}`,
+          description: `${labels.askedQuestion} : ${questionText}
 
-Reponse a verifier :
+${labels.answerToReview} :
 ${answerText}`,
           pageContext: "/user/chat",
         }),
       );
     }
-    publishSnackbar({ variant: "info", message: "Un brouillon de reclamation a ete prepare." });
+    publishSnackbar({ variant: "info", message: labels.claimDraftPrepared });
     navigate("/user/reclamations");
-  }
-
-  async function ensureSourcesLoaded(message: ChatMessage) {
-    if (!message.questionId) return;
-    if (message.sources && message.sources.length > 0) return;
-    if (sourcesLoadingByQuestionId[message.questionId]) return;
-
-    try {
-      setSourcesLoadingByQuestionId((current) => ({ ...current, [message.questionId!]: true }));
-      const items = await getSources(message.questionId);
-      setMessages((current) => current.map((item) => (item.questionId === message.questionId ? { ...item, sources: items } : item)));
-    } catch {
-      publishSnackbar({ variant: "warning", message: "Impossible de charger les sources." });
-    } finally {
-      setSourcesLoadingByQuestionId((current) => ({ ...current, [message.questionId!]: false }));
-    }
-  }
-
-  async function toggleSources(message: ChatMessage) {
-    if (!message.questionId) return;
-    const next = !expandedSources[message.questionId];
-    setExpandedSources((current) => ({ ...current, [message.questionId!]: next }));
-    if (next) {
-      await ensureSourcesLoaded(message);
-    }
   }
 
   async function onAsk(prefilledQuestion?: string) {
@@ -1078,7 +990,7 @@ ${answerText}`,
         id: `u-${Date.now()}`,
         role: "user",
         text: currentQuestion,
-        time: nowAsTime(),
+        time: nowAsTime(locale),
       };
 
       setMessages((prev) => [...prev, userMessage]);
@@ -1094,12 +1006,10 @@ ${answerText}`,
         id: `a-${Date.now()}`,
         role: "assistant",
         text: sanitizeAnswerText(res.answer),
-        time: nowAsTime(),
+        time: nowAsTime(locale),
         questionId: res.questionId,
         sourceFile: res.sourceFile ?? null,
         sources: res.sources ?? [],
-        followUpSuggestions: [],
-        followUpStatus: "idle",
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -1123,19 +1033,19 @@ ${answerText}`,
               onClick={startNewQuestion}
             >
               <Icon><path d="M12 5v14"/><path d="M5 12h14"/></Icon>
-              Nouvelle conversation
+              {labels.newConversation}
             </button>
             <button
               className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               onClick={() => setArchivesModalOpen(true)}
             >
-              <span>Mes archives</span>
+              <span>{labels.myArchives}</span>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">{archivedHistory.length}</span>
             </button>
           </div>
 
           <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-400">
-            <span>Conversations actives</span>
+            <span>{labels.activeConversations}</span>
             <span>{visibleHistory.length}</span>
           </div>
 
@@ -1147,14 +1057,14 @@ ${answerText}`,
               >
                 <button className='block w-full appearance-none border-0 bg-transparent p-0 pr-8 text-left shadow-none outline-none' onClick={() => void openHistoryItem(item)}>
                   <div className='truncate font-medium text-slate-800'>{item.title}</div>
-                  <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt)}</div>
+                  <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt, labels)}</div>
                 </button>
                 <div className='absolute right-2 top-2'>
                   <button
                     type='button'
                     onClick={() => setMenuConversationId((current) => (current === item.id ? null : item.id))}
                     className='flex h-7 w-7 items-center justify-center rounded-md text-slate-500 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100 focus:opacity-100'
-                    aria-label={'Actions pour ' + item.title}
+                    aria-label={labels.actionsFor + ' ' + item.title}
                   >
                     <Icon size={15}>
                       <circle cx='6' cy='12' r='1.2' />
@@ -1169,7 +1079,7 @@ ${answerText}`,
                         onClick={() => openRenameModal(item)}
                         className='w-full px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50'
                       >
-                        Renommer
+                        {labels.rename}
                       </button>
                       <button
                         type='button'
@@ -1177,7 +1087,7 @@ ${answerText}`,
                         onClick={() => void handleArchiveConversation(item)}
                         className='w-full px-3 py-2 text-left text-xs font-medium text-amber-700 transition hover:bg-amber-50 disabled:opacity-60'
                       >
-                        {archivingId === item.id ? 'Archivage...' : 'Archiver'}
+                        {archivingId === item.id ? labels.archiving : labels.archive}
                       </button>
                       <button
                         type='button'
@@ -1185,7 +1095,7 @@ ${answerText}`,
                         onClick={() => void handleDeleteConversation(item)}
                         className='w-full px-3 py-2 text-left text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60'
                       >
-                        {deletingId === item.id ? 'Suppression...' : 'Supprimer'}
+                        {deletingId === item.id ? labels.deleting : labels.delete}
                       </button>
                     </div>
                   )}
@@ -1194,7 +1104,7 @@ ${answerText}`,
             ))}
             {visibleHistory.length === 0 && (
               <div className='rounded-lg border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-400'>
-                Aucune conversation active pour le moment.
+                {labels.noActiveConversations}
               </div>
             )}
           </div>
@@ -1205,7 +1115,7 @@ ${answerText}`,
         <div className="border-b border-slate-200 px-5 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-red-900">Assistant Juridique IA</div>
+              <div className="text-sm font-semibold text-red-900">{labels.legalAssistant}</div>
               <div className="text-xs text-slate-500">Posez vos questions juridiques</div>
             </div>
 
@@ -1233,7 +1143,7 @@ ${answerText}`,
                 <path d="m7 10 5 5 5-5" />
                 <path d="M5 21h14" />
               </Icon>
-              <span>Exporter PDF</span>
+              <span>{language === "fr" ? "Exporter PDF" : language === "en" ? "Export PDF" : "تصدير PDF"}</span>
             </button>
             <button
               type="button"
@@ -1247,14 +1157,14 @@ ${answerText}`,
                 <path d="M8 17h5" />
                 <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
               </Icon>
-              <span>Exporter TXT</span>
+              <span>{language === "fr" ? "Exporter TXT" : language === "en" ? "Export TXT" : "تصدير TXT"}</span>
             </button>
             <div className="relative min-w-[220px] flex-1">
               <input
                 type="search"
                 value={conversationSearch}
                 onChange={(e) => setConversationSearch(e.target.value)}
-                placeholder="Rechercher dans la conversation"
+                placeholder={labels.searchConversation}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-red-300 focus:bg-white"
               />
               <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
@@ -1291,27 +1201,27 @@ ${answerText}`,
             return (
               <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-2xl rounded-xl px-3 py-2 text-sm ${
-                  message.role === "user" ? "bg-red-600 text-white shadow-sm" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-sm"
+                  message.role === "user" ? "bg-red-600 text-white shadow-lg" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-lg"
                 }`}>
-                  {message.role === "assistant" ? renderAssistantContent(message.text, conversationSearch) : <div className="whitespace-pre-wrap">{renderHighlightedText(message.text, conversationSearch)}</div>}
+                  {message.role === "assistant" ? renderAssistantContent(message.text, conversationSearch, labels) : <div className="whitespace-pre-wrap">{renderHighlightedText(message.text, conversationSearch)}</div>}
                   {message.role === "assistant" && (
                     <div className="mt-3 grid gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleCopyResponse(message.text)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                         >
                           <Icon size={14}>
                             <rect x="9" y="9" width="10" height="10" rx="2" />
                             <path d="M5 15V7a2 2 0 0 1 2-2h8" />
                           </Icon>
-                          <span>Copier</span>
+                          <span>{labels.copy}</span>
                         </button>
                         <button
                           type="button"
-                          onClick={() => downloadAnswerPdf(relatedQuestion, message.text, message.sourceFile)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => downloadAnswerPdf(relatedQuestion, message.text, message.sourceFile, locale, labels)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                         >
                           <Icon size={14}>
                             <path d="M12 3v12" />
@@ -1320,23 +1230,9 @@ ${answerText}`,
                           </Icon>
                           <span>PDF</span>
                         </button>
-                        {message.questionId ? (
-                          <button
-                            type="button"
-                            onClick={() => void toggleSources(message)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                          >
-                            <Icon size={14}>
-                              <path d="M4 6h16" />
-                              <path d="M4 12h16" />
-                              <path d="M4 18h10" />
-                            </Icon>
-                            <span>{expandedSources[message.questionId] ? "Masquer les sources" : "Voir les sources"}</span>
-                          </button>
-                        ) : null}
                         {message.sourceFile && (
                           <a
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                             href={message.sourceFile.downloadUrl}
                             download={message.sourceFile.filename}
                           >
@@ -1344,7 +1240,7 @@ ${answerText}`,
                               <path d="M8 3h6l4 4v14H6V3z" />
                               <path d="M14 3v4h4" />
                             </Icon>
-                            <span className="truncate">Document source</span>
+                            <span className="truncate">{labels.sourceDocument}</span>
                           </a>
                         )}
                       </div>
@@ -1360,7 +1256,7 @@ ${answerText}`,
                               <path d="M7 11v8" />
                               <path d="M14 5.5 13 11h5.5a2 2 0 0 1 2 2v1a2 2 0 0 1-.2.9l-2.1 4.2a2 2 0 0 1-1.8 1.1H7V11l4.8-6.2a1 1 0 0 1 1.8.7Z" />
                             </Icon>
-                            <span>Utile</span>
+                            <span>{labels.helpful}</span>
                           </button>
                           <button
                             type="button"
@@ -1371,7 +1267,7 @@ ${answerText}`,
                               <path d="M17 13V5" />
                               <path d="M10 18.5 11 13H5.5a2 2 0 0 1-2-2v-1a2 2 0 0 1 .2-.9l2.1-4.2a2 2 0 0 1 1.8-1.1H17V13l-4.8 6.2a1 1 0 0 1-1.8-.7Z" />
                             </Icon>
-                            <span>Non utile</span>
+                            <span>{labels.notHelpful}</span>
                           </button>
                           <button
                             type="button"
@@ -1383,66 +1279,11 @@ ${answerText}`,
                               <path d="M12 17h.01" />
                               <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
                             </Icon>
-                            <span>Signaler</span>
+                            <span>{labels.report}</span>
                           </button>
                         </div>
                       ) : null}
 
-                      {message.role === "assistant" && relatedQuestion ? (
-                        <div className="rounded-lg border border-slate-200 bg-white p-3">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Questions suggerees</div>
-                            {message.followUpSuggestions && message.followUpSuggestions.length > 0 ? (
-                              <div className="text-[11px] text-slate-400">{message.followUpSuggestions.length}</div>
-                            ) : null}
-                          </div>
-
-                          <div className="grid gap-1.5">
-                            {message.followUpStatus === "loading" ? (
-                              <div className="rounded-md bg-slate-50 px-2.5 py-2 text-xs text-slate-500">
-                                Chargement...
-                              </div>
-                            ) : message.followUpSuggestions && message.followUpSuggestions.length > 0 ? (
-                              message.followUpSuggestions.map((suggestion) => (
-                                <button
-                                  key={`${message.id}-${suggestion}`}
-                                  type="button"
-                                  onClick={() => void onAsk(suggestion)}
-                                  disabled={loading}
-                                  className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {suggestion}
-                                </button>
-                              ))
-                            ) : null}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {message.questionId && expandedSources[message.questionId] ? (
-                        <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
-                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Sources utilisees</div>
-                            <div className="text-[11px] text-slate-400">{message.sources?.length ?? 0} source(s)</div>
-                          </div>
-                          <div className="mt-3 grid gap-2">
-                            {message.questionId && sourcesLoadingByQuestionId[message.questionId] ? (
-                              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">Chargement des sources...</div>
-                            ) : message.sources && message.sources.length > 0 ? (
-                              message.sources.map((source, sourceIndex) => (
-                                <div key={`${source.documentId}-${sourceIndex}`} className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
-                                  <div className="text-xs font-bold text-slate-900">{source.title}</div>
-                                  {sourceMetaLabel(source) ? <div className="mt-1 text-[11px] font-medium text-slate-400">{sourceMetaLabel(source)}</div> : null}
-                                  <p className="mt-2 text-xs leading-5 text-slate-600">{source.excerpt || "Aucun extrait disponible."}</p>
-                                  <a href={`/user/chat/sources/${message.questionId}`} className="mt-2 inline-flex text-[11px] font-semibold text-red-600 hover:text-red-700">Consulter le detail des sources</a>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">Aucune source detaillee disponible.</div>
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
                   )}
                   <div className="mt-1 text-[10px] opacity-70">{message.time}</div>
@@ -1451,7 +1292,7 @@ ${answerText}`,
             );
           }) : normalizedConversationSearch ? (
             <div className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
-              Aucun message ne correspond a votre recherche.
+              {labels.noSearchResults}
             </div>
           ) : null}
 
@@ -1462,32 +1303,32 @@ ${answerText}`,
         <div className="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Mode de reponse</div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{labels.responseMode}</div>
               <div className="mt-1 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setResponseMode("SHORT")}
                   className={responseMode === "SHORT" ? "rounded-full border border-red-600 bg-red-600 px-3 py-1 text-[11px] font-bold text-white" : "rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-red-200 hover:text-red-600"}
                 >
-                  Court
+                  {labels.short}
                 </button>
                 <button
                   type="button"
                   onClick={() => setResponseMode("DETAILED")}
                   className={responseMode === "DETAILED" ? "rounded-full border border-red-600 bg-red-600 px-3 py-1 text-[11px] font-bold text-white" : "rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-red-200 hover:text-red-600"}
                 >
-                  Detaille
+                  {labels.detailed}
                 </button>
               </div>
             </div>
-            <div className="text-[11px] text-slate-400">{responseMode === "SHORT" ? "Synthese rapide" : "Reponse complete avec plus d'explications"}</div>
+            <div className="text-[11px] text-slate-400">{responseMode === "SHORT" ? labels.shortSummary : labels.detailedSummary}</div>
           </div>
           <div className="flex items-end gap-2">
             <div className="relative flex-1">
               <textarea
                 className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-red-300"
                 rows={2}
-                placeholder="Posez votre question..."
+                placeholder={labels.askPlaceholder}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onFocus={() => {
@@ -1507,9 +1348,9 @@ ${answerText}`,
               />
 
               {suggestionsOpen && (
-                <div className="absolute inset-x-0 bottom-[calc(100%+10px)] z-30 grid gap-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)]" role="listbox" aria-label="Suggestions automatiques">
+                <div className="absolute inset-x-0 bottom-[calc(100%+10px)] z-30 grid gap-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)]" role="listbox" aria-label={labels.suggestionsAria}>
                   {suggestionsLoading ? (
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">Recherche de suggestions...</div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">{labels.suggestionsLoading}</div>
                   ) : suggestions.length > 0 ? (
                     suggestions.map((suggestion) => (
                       <button
@@ -1526,7 +1367,7 @@ ${answerText}`,
                       </button>
                     ))
                   ) : hasSuggestionSearch ? (
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">Aucune suggestion disponible pour le moment.</div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">{labels.noSuggestions}</div>
                   ) : null}
                 </div>
               )}
@@ -1549,14 +1390,14 @@ ${answerText}`,
       {renameModalOpen && (
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4'>
           <div className='w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl'>
-            <div className='text-base font-semibold text-slate-900'>Renommer la conversation</div>
-            <div className='mt-1 text-sm text-slate-500'>Donnez un nom plus clair a cette conversation.</div>
+            <div className='text-base font-semibold text-slate-900'>{labels.rename} la conversation</div>
+            <div className='mt-1 text-sm text-slate-500'>{labels.renameHint}</div>
             <input
               autoFocus
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               className='mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-300'
-              placeholder='Nouveau nom'
+              placeholder={labels.newName}
             />
             <div className='mt-4 flex justify-end gap-2'>
               <button
@@ -1568,7 +1409,7 @@ ${answerText}`,
                 }}
                 className='rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'
               >
-                Annuler
+                {labels.cancel}
               </button>
               <button
                 type='button'
@@ -1576,7 +1417,7 @@ ${answerText}`,
                 onClick={() => void submitRename()}
                 className='rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60'
               >
-                {renameTarget && renamingId === renameTarget.id ? 'Enregistrement...' : 'Enregistrer'}
+                {renameTarget && renamingId === renameTarget.id ? labels.saving : labels.save}
               </button>
             </div>
           </div>
@@ -1588,28 +1429,28 @@ ${answerText}`,
           <div className='w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl'>
             <div className='flex items-center justify-between'>
               <div>
-                <div className='text-base font-semibold text-slate-900'>Mes archives</div>
-                <div className='text-sm text-slate-500'>{archivedHistory.length} conversation(s) archivee(s)</div>
+                <div className='text-base font-semibold text-slate-900'>{labels.myArchives}</div>
+                <div className='text-sm text-slate-500'>{labels.archivedCount(archivedHistory.length)}</div>
               </div>
               <button
                 type='button'
                 onClick={() => setArchivesModalOpen(false)}
                 className='rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50'
               >
-                Fermer
+                {labels.close}
               </button>
             </div>
             <div className='mt-4 max-h-[60vh] space-y-2 overflow-y-auto pr-1'>
               {archivedHistory.length === 0 && (
                 <div className='rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-400'>
-                  Aucune conversation archivee.
+                  {labels.noArchived}
                 </div>
               )}
               {archivedHistory.map((item) => (
                 <div key={item.id} className='flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2'>
                   <div className='min-w-0 pr-3'>
                     <div className='truncate text-sm font-medium text-slate-800'>{item.title}</div>
-                    <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt)}</div>
+                    <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt, labels)}</div>
                   </div>
                   <button
                     type='button'
@@ -1617,7 +1458,7 @@ ${answerText}`,
                     onClick={() => void handleRestoreConversation(item)}
                     className='rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60'
                   >
-                    {archivingId === item.id ? 'Restauration...' : 'Restaurer'}
+                    {archivingId === item.id ? labels.restoring : labels.restore}
                   </button>
                 </div>
               ))}

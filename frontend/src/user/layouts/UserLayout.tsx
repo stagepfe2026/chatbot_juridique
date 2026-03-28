@@ -32,6 +32,10 @@ export default function UserLayout() {
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [claimUnreadCount, setClaimUnreadCount] = useState(0);
   const isChatPage = location.pathname.startsWith("/user/chat");
+  const isClaimsPage = location.pathname.startsWith("/user/reclamations");
+  const isFavoritesPage = location.pathname.startsWith("/user/favoris");
+  const isSearchPage = location.pathname.startsWith("/user/recherche");
+  const isProfilePage = location.pathname.startsWith("/user/profil");
 
   async function onLogout() {
     await logout();
@@ -255,7 +259,7 @@ export default function UserLayout() {
         </div>
       </header>
 
-      <main className={isChatPage ? "w-full flex-1 px-3 py-3 lg:px-4" : "mx-auto w-full max-w-[1400px] px-4 py-4 lg:px-6"}>
+      <main className={isChatPage || isClaimsPage || isFavoritesPage || isSearchPage || isProfilePage ? "w-full flex-1 bg-[#F3F4F4] px-3 py-3 lg:px-4" : "mx-auto w-full max-w-[1400px] bg-[#F3F4F4] px-4 py-4 lg:px-6"}>
         <Outlet />
       </main>
     </div>

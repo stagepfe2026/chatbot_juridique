@@ -13,7 +13,7 @@ export function AuditLogCard({ log, onOpen }: AuditLogCardProps) {
     <button
       type="button"
       onClick={() => onOpen(log)}
-      className="grid w-full gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(15,23,42,0.07)] lg:grid-cols-[56px_1fr_auto]"
+      className="grid w-full gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(15,23,42,0.07)] lg:grid-cols-[56px_1fr_auto]"
     >
       <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${iconTone(log.status, log.level)}`}>
         <AuditActionIcon action={log.action} className="h-5 w-5" />

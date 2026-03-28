@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
@@ -25,7 +25,29 @@ class UsersRepository:
             return None
         return UserModel.from_mongo(raw)
 
-    def update_profile(self, *, user_id: str, nom: str, prenom: str, email: str) -> UserModel | None:
+    def update_profile(
+        self,
+        *,
+        user_id: str,
+        nom: str,
+        prenom: str,
+        email: str,
+        telephone: str,
+        adresse: str,
+        date_naissance: str,
+        direction: str,
+        service: str,
+        poste: str,
+        matricule: str,
+        bureau: str,
+        responsable: str,
+        membre_depuis: str,
+        langue_preferee: str,
+        theme_prefere: str,
+        notifications_email: bool,
+        notifications_sms: bool,
+        two_factor_enabled: bool,
+    ) -> UserModel | None:
         object_id = self._parse_user_id(user_id)
         if not object_id:
             return None
@@ -41,6 +63,21 @@ class UsersRepository:
                         "nom": nom,
                         "prenom": prenom,
                         "email": normalized,
+                        "telephone": telephone,
+                        "adresse": adresse,
+                        "dateNaissance": date_naissance,
+                        "direction": direction,
+                        "service": service,
+                        "poste": poste,
+                        "matricule": matricule,
+                        "bureau": bureau,
+                        "responsable": responsable,
+                        "membreDepuis": membre_depuis,
+                        "languePreferee": langue_preferee,
+                        "themePrefere": theme_prefere,
+                        "notificationsEmail": notifications_email,
+                        "notificationsSms": notifications_sms,
+                        "twoFactorEnabled": two_factor_enabled,
                     }
                 },
             )
@@ -65,6 +102,7 @@ class UsersRepository:
             {
                 "$set": {
                     "password": password_hash,
+                    "passwordUpdatedAt": datetime.now(timezone.utc),
                 }
             },
         )
@@ -76,7 +114,32 @@ class UsersRepository:
             return None
         return UserModel.from_mongo(raw)
 
-    def upsert_user(self, *, nom: str, prenom: str, email: str, password_hash: str, role: str) -> str:
+    def upsert_user(
+        self,
+        *,
+        nom: str,
+        prenom: str,
+        email: str,
+        password_hash: str,
+        role: str,
+        telephone: str,
+        profile_image_url: str,
+        adresse: str,
+        date_naissance: str,
+        direction: str,
+        service: str,
+        poste: str,
+        matricule: str,
+        bureau: str,
+        responsable: str,
+        membre_depuis: str,
+        langue_preferee: str,
+        theme_prefere: str,
+        notifications_email: bool,
+        notifications_sms: bool,
+        two_factor_enabled: bool,
+        password_updated_at: datetime,
+    ) -> str:
         normalized = email.strip().lower()
         collection = get_users_collection()
         collection.update_one(
@@ -88,7 +151,28 @@ class UsersRepository:
                     "email": normalized,
                     "password": password_hash,
                     "role": role,
+                    "telephone": telephone,
+                    "profileImageUrl": profile_image_url,
+                    "adresse": adresse,
+                    "dateNaissance": date_naissance,
+                    "direction": direction,
+                    "service": service,
+                    "poste": poste,
+                    "matricule": matricule,
+                    "bureau": bureau,
+                    "responsable": responsable,
+                    "membreDepuis": membre_depuis,
+                    "languePreferee": langue_preferee,
+                    "themePrefere": theme_prefere,
+                    "notificationsEmail": notifications_email,
+                    "notificationsSms": notifications_sms,
+                    "twoFactorEnabled": two_factor_enabled,
+                    "passwordUpdatedAt": password_updated_at,
                     "deletedAt": None,
+                },
+                "$unset": {
+                    "activeSessionsCount": "",
+                    "loginHistory": "",
                 },
                 "$setOnInsert": {"createdAt": datetime.now(timezone.utc)},
             },

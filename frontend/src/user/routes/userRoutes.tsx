@@ -1,4 +1,5 @@
 import AskQuestionPage from "../pages/AskQuestionPage";
+import ClaimDetailPage from "../pages/ClaimDetailPage";
 import ClaimPage from "../pages/ClaimPage";
 import ConversationsHistoryPage from "../pages/ConversationsHistoryPage";
 import FavoriteDocumentsPage from "../pages/FavoriteDocumentsPage";
@@ -15,6 +16,7 @@ export const userRoutes = [
   { path: "favoris", element: <FavoriteDocumentsPage /> },
   { path: "profil", element: <ProfilePage /> },
   { path: "reclamations", element: <ClaimPage /> },
+  { path: "reclamations/:claimId", element: <ClaimDetailPage /> },
   // Page de question/reponse (chat RAG).
   { path: "chat", element: <AskQuestionPage /> },
   // Historique personnel des echanges.

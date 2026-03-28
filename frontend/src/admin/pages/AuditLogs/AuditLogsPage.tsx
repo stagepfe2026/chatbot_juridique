@@ -274,7 +274,7 @@ export default function AuditLogsPage() {
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
 
       {!loading ? (
-        <section className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
+        <section className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-lg">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-bold tracking-tight text-slate-950">Liste des activites</h2>

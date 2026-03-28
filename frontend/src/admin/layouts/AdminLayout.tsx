@@ -47,7 +47,7 @@ export default function AdminLayout() {
           {/* Brand */}
           <div className="px-5 pb-4 pt-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#DA3D20] text-white shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#DA3D20] text-white shadow-lg">
                 <Icon>
                   <path d="M12 21s-6-4.35-8.5-8A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 20.5 13C18 16.65 12 21 12 21z" />
                 </Icon>
