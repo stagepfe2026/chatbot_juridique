@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   type Claim,
@@ -11,6 +11,8 @@ import {
   statusBadgeClass,
 } from "../../claims/claimUi";
 import { useI18n } from "../../i18n/I18nContext";
+import InfoCard from "../components/ClaimDetailPage/InfoCard";
+import WorkflowRow from "../components/ClaimDetailPage/WorkflowRow";
 
 const labels = {
   fr: {
@@ -64,29 +66,29 @@ const labels = {
     admin: "Administration",
   },
   ar: {
-    back: "العودة إلى الشكايات",
-    folder: "ملف الشكاية",
-    view: "عرض الملف",
-    loading: "جاري تحميل الملف...",
-    ticket: "رقم التذكرة",
-    category: "الفئة",
-    createdAt: "تاريخ الإنشاء",
-    updatedAt: "آخر تحديث",
-    description: "وصف الشكاية",
-    attachments: "المرفقات والروابط",
-    openPage: "فتح الصفحة المعنية",
-    noLink: "لا يوجد رابط مرتبط.",
-    noAttachment: "لا توجد مرفقات.",
-    reply: "الرد والمتابعة",
-    noReply: "لا يوجد رد إداري حالياً.",
-    replySent: "تم إرسال الرد في",
-    status: "الحالة",
-    history: "السجل",
-    claimCreated: "تم إنشاء الشكاية",
-    replyTransmitted: "تم إرسال الرد الإداري",
-    processing: "الملف قيد المعالجة",
-    user: "المستخدم",
-    admin: "الإدارة",
+    back: "?????? ??? ????????",
+    folder: "??? ???????",
+    view: "??? ?????",
+    loading: "???? ????? ?????...",
+    ticket: "??? ???????",
+    category: "?????",
+    createdAt: "????? ???????",
+    updatedAt: "??? ?????",
+    description: "??? ???????",
+    attachments: "???????? ????????",
+    openPage: "??? ?????? ???????",
+    noLink: "?? ???? ???? ?????.",
+    noAttachment: "?? ???? ??????.",
+    reply: "???? ?????????",
+    noReply: "?? ???? ?? ????? ??????.",
+    replySent: "?? ????? ???? ??",
+    status: "??????",
+    history: "?????",
+    claimCreated: "?? ????? ???????",
+    replyTransmitted: "?? ????? ???? ???????",
+    processing: "????? ??? ????????",
+    user: "????????",
+    admin: "???????",
   },
 } as const;
 
@@ -326,24 +328,5 @@ export default function ClaimDetailPage() {
   );
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-        {label}
-      </div>
-      <div className="mt-1 text-[13px] font-semibold text-slate-900">
-        {value}
-      </div>
-    </div>
-  );
-}
-function WorkflowRow({ label, active }: { label: string; active: boolean }) {
-  return (
-    <div
-      className={`rounded-2xl border px-3 py-2.5 text-[13px] ${active ? "border-slate-300 bg-slate-50 text-slate-900" : "border-slate-200 bg-white text-slate-400"}`}
-    >
-      <div className="font-semibold">{label}</div>
-    </div>
-  );
-}
+
+

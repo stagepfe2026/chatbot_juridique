@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import type { ChangeEvent, ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import type {
   DocumentCategory,
   DocumentSearchResult,
@@ -9,6 +9,9 @@ import {
   setDocumentFavorite,
 } from "../../services/userDocuments.service";
 import { useI18n } from "../../i18n/I18nContext";
+import Icon from "../components/FavoriteDocumentsPage/Icon";
+import Metric from "../components/FavoriteDocumentsPage/Metric";
+import InfoRow from "../components/FavoriteDocumentsPage/InfoRow";
 
 const FAVORITE_LIBRARY_KEY = "user-favorite-library";
 type FavoriteSortField = "addedAt" | "documentDate" | "title" | "category";
@@ -162,25 +165,6 @@ const labels = {
     noDate: "?? ???? ?????",
   },
 } as const;
-
-function Icon({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width={16}
-      height={16}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="flex-shrink-0"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
 function readFavoriteLibrary(): Record<string, FavoriteLibraryEntry> {
   if (typeof window === "undefined") return {};
@@ -794,34 +778,6 @@ export default function FavoriteDocumentsPage() {
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: string;
-  helper: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#efe5e1] bg-white px-4 py-3 shadow-lg">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-      </div>
-      <div className="mt-1 text-lg font-semibold text-slate-900">{value}</div>
-      <div className="mt-1 text-xs text-slate-500">{helper}</div>
-    </div>
-  );
-}
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-[11px] text-slate-400">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-slate-900">{value}</div>
     </div>
   );
 }

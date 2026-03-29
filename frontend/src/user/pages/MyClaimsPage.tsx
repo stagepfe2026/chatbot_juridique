@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   type Claim,
@@ -15,6 +15,8 @@ import {
 } from "../../claims/claimUi";
 import { publishSnackbar } from "../../utils/snackbarBus";
 import { useI18n } from "../../i18n/I18nContext";
+import StatCard from "../components/MyClaimsPage/StatCard";
+import WorkflowRow from "../components/MyClaimsPage/WorkflowRow";
 
 type DetailedClaimStatus = Exclude<ClaimStatus, "ANSWERED">;
 type ResolutionFeedback = "CONFIRMED" | "REOPENED";
@@ -501,35 +503,6 @@ export default function MyClaimsPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: string;
-  helper: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
-      <div className="mt-1 text-xs text-slate-500">{helper}</div>
-    </div>
-  );
-}
-
-function WorkflowRow({ label, helper }: { label: string; helper: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="font-semibold text-slate-800">{label}</div>
-      <div className="mt-1 text-xs text-slate-500">{helper}</div>
-    </div>
-  );
-}
-
 function readFeedbackState(): Record<string, ResolutionFeedback> {
   if (typeof window === "undefined") return {};
   try {
@@ -677,3 +650,6 @@ function normalizeText(value: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 }
+
+
+

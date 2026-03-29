@@ -16,6 +16,11 @@ import {
 } from "../../services/user.service";
 import { publishSnackbar } from "../../utils/snackbarBus";
 import { useI18n } from "../../i18n/I18nContext";
+import AskQuestionChatHeader from "../components/AskQuestionPage/ChatHeader";
+import AskQuestionComposer from "../components/AskQuestionPage/Composer";
+import AskQuestionMessagesPane from "../components/AskQuestionPage/MessagesPane";
+import { AskQuestionArchivesModal, AskQuestionRenameModal } from "../components/AskQuestionPage/Modals";
+import AskQuestionSidebar from "../components/AskQuestionPage/Sidebar";
 
 type ChatMessage = {
   id: string;
@@ -1025,450 +1030,115 @@ ${answerText}`,
 
   return (
     <div className="flex h-[calc(107vh-140px)] min-h-[calc(107vh-140px)] gap-4 ">
-      {sidebarOpen && (
-        <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(104vh-120px)] overflow-y-auto rounded-xl shadow-lg">
-          <div className="grid gap-2">
-            <button
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold hover:bg-red-50 hover:text-red-600"
-              onClick={startNewQuestion}
-            >
-              <Icon><path d="M12 5v14"/><path d="M5 12h14"/></Icon>
-              {labels.newConversation}
-            </button>
-            <button
-              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              onClick={() => setArchivesModalOpen(true)}
-            >
-              <span>{labels.myArchives}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">{archivedHistory.length}</span>
-            </button>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-400">
-            <span>{labels.activeConversations}</span>
-            <span>{visibleHistory.length}</span>
-          </div>
-
-          <div className='mt-3 space-y-2'>
-            {visibleHistory.map((item) => (
-              <div
-                key={item.id}
-                className='group relative rounded-lg px-3 py-2 text-sm transition-colors hover:bg-slate-50'
-              >
-                <button className='block w-full appearance-none border-0 bg-transparent p-0 pr-8 text-left shadow-none outline-none' onClick={() => void openHistoryItem(item)}>
-                  <div className='truncate font-medium text-slate-800'>{item.title}</div>
-                  <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt, labels)}</div>
-                </button>
-                <div className='absolute right-2 top-2'>
-                  <button
-                    type='button'
-                    onClick={() => setMenuConversationId((current) => (current === item.id ? null : item.id))}
-                    className='flex h-7 w-7 items-center justify-center rounded-md text-slate-500 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100 focus:opacity-100'
-                    aria-label={labels.actionsFor + ' ' + item.title}
-                  >
-                    <Icon size={15}>
-                      <circle cx='6' cy='12' r='1.2' />
-                      <circle cx='12' cy='12' r='1.2' />
-                      <circle cx='18' cy='12' r='1.2' />
-                    </Icon>
-                  </button>
-                  {menuConversationId === item.id && (
-                    <div className='absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg'>
-                      <button
-                        type='button'
-                        onClick={() => openRenameModal(item)}
-                        className='w-full px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50'
-                      >
-                        {labels.rename}
-                      </button>
-                      <button
-                        type='button'
-                        disabled={archivingId === item.id}
-                        onClick={() => void handleArchiveConversation(item)}
-                        className='w-full px-3 py-2 text-left text-xs font-medium text-amber-700 transition hover:bg-amber-50 disabled:opacity-60'
-                      >
-                        {archivingId === item.id ? labels.archiving : labels.archive}
-                      </button>
-                      <button
-                        type='button'
-                        disabled={deletingId === item.id}
-                        onClick={() => void handleDeleteConversation(item)}
-                        className='w-full px-3 py-2 text-left text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60'
-                      >
-                        {deletingId === item.id ? labels.deleting : labels.delete}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {visibleHistory.length === 0 && (
-              <div className='rounded-lg border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-400'>
-                {labels.noActiveConversations}
-              </div>
-            )}
-          </div>
-        </aside>
-      )}
+      <AskQuestionSidebar
+        visible={sidebarOpen}
+        labels={labels}
+        archivedCount={archivedHistory.length}
+        visibleHistory={visibleHistory}
+        menuConversationId={menuConversationId}
+        archivingId={archivingId}
+        deletingId={deletingId}
+        Icon={Icon}
+        formatDayLabel={(dateString) => formatDayLabel(dateString, labels)}
+        startNewQuestion={startNewQuestion}
+        openArchives={() => setArchivesModalOpen(true)}
+        openHistoryItem={(item) => void openHistoryItem(item)}
+        toggleMenuConversation={(id) => setMenuConversationId((current) => (current === id ? null : id))}
+        openRenameModal={openRenameModal}
+        handleArchiveConversation={(item) => void handleArchiveConversation(item)}
+        handleDeleteConversation={(item) => void handleDeleteConversation(item)}
+      />
 
       <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-        <div className="border-b border-slate-200 px-5 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-red-900">{labels.legalAssistant}</div>
-              <div className="text-xs text-slate-500">Posez vos questions juridiques</div>
-            </div>
+        <AskQuestionChatHeader
+          labels={labels}
+          language={language}
+          messages={messages}
+          conversationSearch={conversationSearch}
+          normalizedConversationSearch={normalizedConversationSearch}
+          filteredMessagesCount={filteredMessages.length}
+          Icon={Icon}
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          onExport={handleExportConversation}
+          onSearchChange={setConversationSearch}
+          onClearSearch={() => setConversationSearch("")}
+        />
 
-            <button
-              className="rounded-lg border border-slate-200 p-2 hover:bg-red-50 hover:text-red-600"
-              onClick={() => setSidebarOpen((prev) => !prev)}
-            >
-              <Icon>
-                <path d="M4 7h16"/>
-                <path d="M4 12h16"/>
-                <path d="M4 17h16"/>
-              </Icon>
-            </button>
-          </div>
+        <AskQuestionMessagesPane
+          messages={messages}
+          filteredMessages={filteredMessages}
+          normalizedConversationSearch={normalizedConversationSearch}
+          conversationSearch={conversationSearch}
+          labels={labels}
+          loading={loading}
+          feedbackByQuestionId={feedbackByQuestionId}
+          bottomRef={bottomRef}
+          Icon={Icon}
+          renderAssistantContent={(text, searchQuery) => renderAssistantContent(text, searchQuery, labels)}
+          renderHighlightedText={renderHighlightedText}
+          onCopyResponse={handleCopyResponse}
+          onDownloadAnswerPdf={(questionText, answerText, sourceFile) => downloadAnswerPdf(questionText, answerText, sourceFile, locale, labels)}
+          onFeedback={(questionId, direction) => handleFeedback(questionId, direction)}
+          onReportResponse={handleReportResponse}
+        />
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleExportConversation("pdf")}
-              disabled={messages.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Icon size={14}>
-                <path d="M12 3v12" />
-                <path d="m7 10 5 5 5-5" />
-                <path d="M5 21h14" />
-              </Icon>
-              <span>{language === "fr" ? "Exporter PDF" : language === "en" ? "Export PDF" : "تصدير PDF"}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleExportConversation("txt")}
-              disabled={messages.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Icon size={14}>
-                <path d="M8 7h8" />
-                <path d="M8 12h8" />
-                <path d="M8 17h5" />
-                <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
-              </Icon>
-              <span>{language === "fr" ? "Exporter TXT" : language === "en" ? "Export TXT" : "تصدير TXT"}</span>
-            </button>
-            <div className="relative min-w-[220px] flex-1">
-              <input
-                type="search"
-                value={conversationSearch}
-                onChange={(e) => setConversationSearch(e.target.value)}
-                placeholder={labels.searchConversation}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-red-300 focus:bg-white"
-              />
-              <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
-                <Icon size={14}>
-                  <circle cx="11" cy="11" r="6" />
-                  <path d="m20 20-3.5-3.5" />
-                </Icon>
-              </div>
-            </div>
-            {normalizedConversationSearch ? (
-              <>
-                <div className="text-xs text-slate-500">
-                  {filteredMessages.length} resultat{filteredMessages.length > 1 ? "s" : ""}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setConversationSearch("")}
-                  className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  Effacer
-                </button>
-              </>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5 scroll-smooth">          {filteredMessages.length > 0 ? filteredMessages.map((message) => {
-            const sourceIndex = messages.findIndex((item) => item.id === message.id);
-            const relatedQuestion =
-              message.role === "assistant"
-                ? [...messages.slice(0, sourceIndex)].reverse().find((item) => item.role === "user")?.text ?? ""
-                : "";
-
-            return (
-              <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-2xl rounded-xl px-3 py-2 text-sm ${
-                  message.role === "user" ? "bg-red-600 text-white shadow-lg" : "border border-slate-200 bg-slate-50 text-slate-800 shadow-lg"
-                }`}>
-                  {message.role === "assistant" ? renderAssistantContent(message.text, conversationSearch, labels) : <div className="whitespace-pre-wrap">{renderHighlightedText(message.text, conversationSearch)}</div>}
-                  {message.role === "assistant" && (
-                    <div className="mt-3 grid gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCopyResponse(message.text)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                        >
-                          <Icon size={14}>
-                            <rect x="9" y="9" width="10" height="10" rx="2" />
-                            <path d="M5 15V7a2 2 0 0 1 2-2h8" />
-                          </Icon>
-                          <span>{labels.copy}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => downloadAnswerPdf(relatedQuestion, message.text, message.sourceFile, locale, labels)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                        >
-                          <Icon size={14}>
-                            <path d="M12 3v12" />
-                            <path d="m7 10 5 5 5-5" />
-                            <path d="M5 21h14" />
-                          </Icon>
-                          <span>PDF</span>
-                        </button>
-                        {message.sourceFile && (
-                          <a
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                            href={message.sourceFile.downloadUrl}
-                            download={message.sourceFile.filename}
-                          >
-                            <Icon size={14}>
-                              <path d="M8 3h6l4 4v14H6V3z" />
-                              <path d="M14 3v4h4" />
-                            </Icon>
-                            <span className="truncate">{labels.sourceDocument}</span>
-                          </a>
-                        )}
-                      </div>
-
-                      {message.questionId ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleFeedback(message.questionId!, "up")}
-                            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${feedbackByQuestionId[message.questionId] === "up" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"}`}
-                          >
-                            <Icon size={14}>
-                              <path d="M7 11v8" />
-                              <path d="M14 5.5 13 11h5.5a2 2 0 0 1 2 2v1a2 2 0 0 1-.2.9l-2.1 4.2a2 2 0 0 1-1.8 1.1H7V11l4.8-6.2a1 1 0 0 1 1.8.7Z" />
-                            </Icon>
-                            <span>{labels.helpful}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleFeedback(message.questionId!, "down")}
-                            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${feedbackByQuestionId[message.questionId] === "down" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"}`}
-                          >
-                            <Icon size={14}>
-                              <path d="M17 13V5" />
-                              <path d="M10 18.5 11 13H5.5a2 2 0 0 1-2-2v-1a2 2 0 0 1 .2-.9l2.1-4.2a2 2 0 0 1 1.8-1.1H17V13l-4.8 6.2a1 1 0 0 1-1.8-.7Z" />
-                            </Icon>
-                            <span>{labels.notHelpful}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleReportResponse(relatedQuestion, message.text)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                          >
-                            <Icon size={14}>
-                              <path d="M12 9v4" />
-                              <path d="M12 17h.01" />
-                              <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
-                            </Icon>
-                            <span>{labels.report}</span>
-                          </button>
-                        </div>
-                      ) : null}
-
-                    </div>
-                  )}
-                  <div className="mt-1 text-[10px] opacity-70">{message.time}</div>
-                </div>
-              </div>
-            );
-          }) : normalizedConversationSearch ? (
-            <div className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
-              {labels.noSearchResults}
-            </div>
-          ) : null}
-
-          {loading && <div className="text-sm text-slate-400">IA en train de répondre...</div>}
-          <div ref={bottomRef} />
-        </div>
-
-        <div className="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{labels.responseMode}</div>
-              <div className="mt-1 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setResponseMode("SHORT")}
-                  className={responseMode === "SHORT" ? "rounded-full border border-red-600 bg-red-600 px-3 py-1 text-[11px] font-bold text-white" : "rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-red-200 hover:text-red-600"}
-                >
-                  {labels.short}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setResponseMode("DETAILED")}
-                  className={responseMode === "DETAILED" ? "rounded-full border border-red-600 bg-red-600 px-3 py-1 text-[11px] font-bold text-white" : "rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-red-200 hover:text-red-600"}
-                >
-                  {labels.detailed}
-                </button>
-              </div>
-            </div>
-            <div className="text-[11px] text-slate-400">{responseMode === "SHORT" ? labels.shortSummary : labels.detailedSummary}</div>
-          </div>
-          <div className="flex items-end gap-2">
-            <div className="relative flex-1">
-              <textarea
-                className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-red-300"
-                rows={2}
-                placeholder={labels.askPlaceholder}
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onFocus={() => {
-                  if (countTypedWords(question) >= 3) {
-                    setSuggestionsOpen(true);
-                  }
-                }}
-                onBlur={() => {
-                  window.setTimeout(() => setSuggestionsOpen(false), 120);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void onAsk();
-                  }
-                }}
-              />
-
-              {suggestionsOpen && (
-                <div className="absolute inset-x-0 bottom-[calc(100%+10px)] z-30 grid gap-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)]" role="listbox" aria-label={labels.suggestionsAria}>
-                  {suggestionsLoading ? (
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">{labels.suggestionsLoading}</div>
-                  ) : suggestions.length > 0 ? (
-                    suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        className="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold text-slate-900 transition hover:-translate-y-px hover:bg-red-50 hover:text-red-700"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setQuestion(suggestion);
-                          setSuggestionsOpen(false);
-                        }}
-                      >
-                        {suggestion}
-                      </button>
-                    ))
-                  ) : hasSuggestionSearch ? (
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">{labels.noSuggestions}</div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => void onAsk()}
-              disabled={!question.trim() || (!conversationId && conversationBootstrapping)}
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-            >
-              <Icon>
-                <path d="m22 2-10 10"/>
-                <path d="m22 2-7 20-3-9-9-3z"/>
-              </Icon>
-            </button>
-          </div>
-        </div>
-
+        <AskQuestionComposer
+          labels={labels}
+          responseMode={responseMode}
+          question={question}
+          suggestionsOpen={suggestionsOpen}
+          suggestionsLoading={suggestionsLoading}
+          suggestions={suggestions}
+          hasSuggestionSearch={hasSuggestionSearch}
+          Icon={Icon}
+          onResponseModeChange={setResponseMode}
+          onQuestionChange={setQuestion}
+          onAsk={() => void onAsk()}
+          onFocus={() => {
+            if (countTypedWords(question) >= 3) {
+              setSuggestionsOpen(true);
+            }
+          }}
+          onBlur={() => {
+            window.setTimeout(() => setSuggestionsOpen(false), 120);
+          }}
+          onSuggestionClick={setQuestion}
+          setSuggestionsOpen={setSuggestionsOpen}
+          askDisabled={!question.trim() || (!conversationId && conversationBootstrapping)}
+        />
       </section>
 
-      {renameModalOpen && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4'>
-          <div className='w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl'>
-            <div className='text-base font-semibold text-slate-900'>{labels.rename} la conversation</div>
-            <div className='mt-1 text-sm text-slate-500'>{labels.renameHint}</div>
-            <input
-              autoFocus
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              className='mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-300'
-              placeholder={labels.newName}
-            />
-            <div className='mt-4 flex justify-end gap-2'>
-              <button
-                type='button'
-                onClick={() => {
-                  setRenameModalOpen(false);
-                  setRenameTarget(null);
-                  setRenameValue('');
-                }}
-                className='rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'
-              >
-                {labels.cancel}
-              </button>
-              <button
-                type='button'
-                disabled={!renameValue.trim() || (renameTarget ? renamingId === renameTarget.id : false)}
-                onClick={() => void submitRename()}
-                className='rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60'
-              >
-                {renameTarget && renamingId === renameTarget.id ? labels.saving : labels.save}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AskQuestionRenameModal
+        open={renameModalOpen}
+        labels={labels}
+        renameValue={renameValue}
+        renameTarget={renameTarget}
+        renamingId={renamingId}
+        onClose={() => {
+          setRenameModalOpen(false);
+          setRenameTarget(null);
+          setRenameValue("");
+        }}
+        onChange={setRenameValue}
+        onSubmit={() => void submitRename()}
+      />
 
-      {archivesModalOpen && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4'>
-          <div className='w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <div className='text-base font-semibold text-slate-900'>{labels.myArchives}</div>
-                <div className='text-sm text-slate-500'>{labels.archivedCount(archivedHistory.length)}</div>
-              </div>
-              <button
-                type='button'
-                onClick={() => setArchivesModalOpen(false)}
-                className='rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50'
-              >
-                {labels.close}
-              </button>
-            </div>
-            <div className='mt-4 max-h-[60vh] space-y-2 overflow-y-auto pr-1'>
-              {archivedHistory.length === 0 && (
-                <div className='rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-400'>
-                  {labels.noArchived}
-                </div>
-              )}
-              {archivedHistory.map((item) => (
-                <div key={item.id} className='flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2'>
-                  <div className='min-w-0 pr-3'>
-                    <div className='truncate text-sm font-medium text-slate-800'>{item.title}</div>
-                    <div className='text-xs text-slate-400'>{formatDayLabel(item.updatedAt, labels)}</div>
-                  </div>
-                  <button
-                    type='button'
-                    disabled={archivingId === item.id}
-                    onClick={() => void handleRestoreConversation(item)}
-                    className='rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60'
-                  >
-                    {archivingId === item.id ? labels.restoring : labels.restore}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <AskQuestionArchivesModal
+        open={archivesModalOpen}
+        labels={labels}
+        archivedHistory={archivedHistory}
+        archivingId={archivingId}
+        formatDayLabel={(dateString) => formatDayLabel(dateString, labels)}
+        onClose={() => setArchivesModalOpen(false)}
+        onRestore={(item) => void handleRestoreConversation(item)}
+      />
     </div>
   );
 }
+
+
+
+
 
 
 

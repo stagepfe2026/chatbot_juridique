@@ -3,16 +3,13 @@ import type { ConversationSummary } from "../../models/conversation.models";
 import { archiveConversation, listMyConversations, restoreConversation } from "../../services/user.service";
 import { publishSnackbar } from "../../utils/snackbarBus";
 import { useI18n } from "../../i18n/I18nContext";
+import Icon from "../components/ConversationsHistoryPage/Icon";
 
 const labels = {
   fr: { title: "Historique des conversations", subtitle: "Consultez, archivez ou restaurez vos echanges.", search: "Rechercher...", active: "Actives", archived: "Archives", newest: "Plus recentes", oldest: "Plus anciennes", loading: "Chargement...", empty: "Aucune conversation trouvee.", archivedDone: "Conversation archivee.", restoredDone: "Conversation restauree.", archivedBadge: "Archivee", activeBadge: "Active", noPreview: "Aucun apercu", messages: "msg", restore: "Restaurer", archive: "Archiver" },
   en: { title: "Conversation history", subtitle: "View, archive, or restore your exchanges.", search: "Search...", active: "Active", archived: "Archived", newest: "Most recent", oldest: "Oldest", loading: "Loading...", empty: "No conversation found.", archivedDone: "Conversation archived.", restoredDone: "Conversation restored.", archivedBadge: "Archived", activeBadge: "Active", noPreview: "No preview", messages: "msg", restore: "Restore", archive: "Archive" },
   ar: { title: "??? ?????????", subtitle: "???? ??? ???????? ?? ?? ???????? ?? ?????????.", search: "???...", active: "????", archived: "??????", newest: "??????", oldest: "??????", loading: "???? ???????...", empty: "?? ??? ?????? ??? ?? ??????.", archivedDone: "??? ????? ????????.", restoredDone: "??? ??????? ????????.", archivedBadge: "??????", activeBadge: "????", noPreview: "?? ???? ??????", messages: "?????", restore: "???????", archive: "?????" },
 } as const;
-
-function Icon({ children }: { children: React.ReactNode }) {
-  return <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>;
-}
 
 function matchesSearch(item: ConversationSummary, query: string): boolean {
   const normalized = query.trim().toLowerCase();
@@ -113,6 +110,11 @@ export default function ConversationsHistoryPage() {
     </div>
   );
 }
+
+
+
+
+
 
 
 

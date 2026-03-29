@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import type {
   DocumentCategory,
   DocumentSearchResult,
@@ -9,6 +9,8 @@ import {
   setDocumentFavorite,
 } from "../../services/userDocuments.service";
 import { useI18n } from "../../i18n/I18nContext";
+import Icon from "../components/SearchDocumentsPage/Icon";
+import MetricCard from "../components/SearchDocumentsPage/MetricCard";
 
 const RECENT_SEARCHES_KEY = "user-document-searches";
 const RECENT_DOCUMENTS_KEY = "user-recent-documents";
@@ -24,22 +26,6 @@ type StoredRecentDocument = {
   category: DocumentCategory;
   viewedAt: string;
 };
-
-function Icon({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width={16}
-      height={16}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
 function highlightText(text: string, terms: string[]) {
   if (!terms.length || !text) return text;
@@ -709,24 +695,6 @@ export default function SearchDocumentsPage() {
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: string;
-  helper?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#efe5e1] bg-white px-4 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-      </div>
-      <div className="mt-1 text-lg font-bold text-slate-900">{value}</div>
-      {helper ? (
-        <div className="mt-1 text-[11px] text-slate-500">{helper}</div>
-      ) : null}
-    </div>
-  );
-}
+
+
+
