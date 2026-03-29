@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { FormEvent, ReactNode } from "react";
@@ -472,8 +472,9 @@ export default function ProfilePage() {
                 <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-[3px] border-white bg-emerald-500 shadow-lg" />
               </div>
               <div>
-                <h1 className="text-[26px] font-semibold tracking-tight text-slate-950">{fullName}</h1>
-                <p className="mt-1 text-[13px] text-slate-500">{form.poste} • {form.direction}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{t("claims.userArea")}</p>
+                <h1 className="mt-2 text-[26px] font-semibold tracking-tight text-slate-950">{fullName}</h1>
+                <p className="mt-1 text-[13px] text-slate-500">{form.poste} ? {form.direction}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-slate-500">
                   <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-medium text-slate-700">{form.matricule}</span>
                   <span>{t("profile.memberSince")} {memberSinceLabel}</span>
@@ -528,7 +529,7 @@ export default function ProfilePage() {
                 <span className="text-[13px] text-slate-500">{user.loginHistory.length} {t("profile.latestConnections")}</span>
               </div>
               <div className="mt-4 space-y-3">
-                {user.loginHistory.map((entry, index) => (
+                {user.loginHistory.slice(-3).map((entry, index) => (
                   <SessionRow key={`${entry.device}-${entry.lastSeenAt}-${index}`} entry={entry} locale={locale} />
                 ))}
               </div>
@@ -575,10 +576,6 @@ export default function ProfilePage() {
               <div className="mt-4 space-y-4">
                 <ToggleRow label={t("profile.twoFactor")} helper={t("profile.strongProtection")} checked={form.twoFactorEnabled} onChange={(value) => updateField("twoFactorEnabled", value)} />
                 <InfoStack label={t("profile.passwordUpdatedAt")} value={formatDate(effectivePasswordUpdatedAt, locale)} />
-                <InfoStack label={t("profile.activeSessions")} value={`${user.activeSessionsCount}`} />
-                <button type="button" onClick={onDisconnectAllDevices} disabled={disconnectingDevices} className="w-full rounded-xl border border-red-300 px-4 py-3 text-[13px] font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60">
-                  {disconnectingDevices ? "..." : t("profile.disconnectAll")}
-                </button>
               </div>
             </section>
 
@@ -760,6 +757,18 @@ function InfoStack({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatusBadge({ tone }: { tone: "success" | "danger" }) {
+  const classes = tone === "success" ? "text-emerald-500" : "text-red-500";
+
+  return (
+    <span className={`inline-flex items-center ${classes}`} aria-hidden="true">
+      <svg viewBox="0 0 16 16" width={14} height={14} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {tone === "success" ? <path d="m3.5 8 3 3 6-6" /> : <path d="M5 5l6 6M11 5l-6 6" />}
+      </svg>
+    </span>
+  );
+}
+
 function SessionRow({ entry, locale }: { entry: LoginHistoryEntry; locale: string }) {
   const danger = entry.isSuspicious;
   return (
@@ -774,13 +783,17 @@ function SessionRow({ entry, locale }: { entry: LoginHistoryEntry; locale: strin
         <div>
           <div className="flex items-center gap-2 text-[14px] font-semibold text-slate-950">
             <span>{entry.device}</span>
-            {entry.isCurrent ? <span className="text-emerald-500">✓</span> : null}
-            {entry.isSuspicious ? <span className="text-red-500">×</span> : null}
+            {entry.isCurrent ? <StatusBadge tone="success" /> : null}
+            {entry.isSuspicious ? <StatusBadge tone="danger" /> : null}
           </div>
-          <div className="mt-1 text-[13px] text-slate-500">{entry.browser} • {entry.location}</div>
+          <div className="mt-1 text-[13px] text-slate-500">{entry.browser}:{entry.location}</div>
         </div>
       </div>
       <div className="text-right text-[13px] text-slate-500">{formatDateTime(entry.lastSeenAt, locale)}</div>
     </div>
   );
 }
+
+
+
+

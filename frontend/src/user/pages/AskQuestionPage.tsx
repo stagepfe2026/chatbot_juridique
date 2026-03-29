@@ -1026,7 +1026,7 @@ ${answerText}`,
   return (
     <div className="flex h-[calc(107vh-140px)] min-h-[calc(107vh-140px)] gap-4 ">
       {sidebarOpen && (
-        <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(104vh-120px)] overflow-y-auto rounded-xl">
+        <aside className="hidden lg:flex w-72 shrink-0 flex-col border border-slate-200 bg-white p-3 sticky top-6 h-[calc(104vh-120px)] overflow-y-auto rounded-xl shadow-lg">
           <div className="grid gap-2">
             <button
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold hover:bg-red-50 hover:text-red-600"
@@ -1111,7 +1111,7 @@ ${answerText}`,
         </aside>
       )}
 
-      <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
         <div className="border-b border-slate-200 px-5 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>

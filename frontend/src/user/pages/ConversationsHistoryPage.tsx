@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ConversationSummary } from "../../models/conversation.models";
 import { archiveConversation, listMyConversations, restoreConversation } from "../../services/user.service";
 import { publishSnackbar } from "../../utils/snackbarBus";
@@ -7,7 +7,7 @@ import { useI18n } from "../../i18n/I18nContext";
 const labels = {
   fr: { title: "Historique des conversations", subtitle: "Consultez, archivez ou restaurez vos echanges.", search: "Rechercher...", active: "Actives", archived: "Archives", newest: "Plus recentes", oldest: "Plus anciennes", loading: "Chargement...", empty: "Aucune conversation trouvee.", archivedDone: "Conversation archivee.", restoredDone: "Conversation restauree.", archivedBadge: "Archivee", activeBadge: "Active", noPreview: "Aucun apercu", messages: "msg", restore: "Restaurer", archive: "Archiver" },
   en: { title: "Conversation history", subtitle: "View, archive, or restore your exchanges.", search: "Search...", active: "Active", archived: "Archived", newest: "Most recent", oldest: "Oldest", loading: "Loading...", empty: "No conversation found.", archivedDone: "Conversation archived.", restoredDone: "Conversation restored.", archivedBadge: "Archived", activeBadge: "Active", noPreview: "No preview", messages: "msg", restore: "Restore", archive: "Archive" },
-  ar: { title: "سجل المحادثات", subtitle: "اطلع على محادثاتك أو قم بأرشفتها أو استعادتها.", search: "بحث...", active: "نشطة", archived: "مؤرشفة", newest: "الأحدث", oldest: "الأقدم", loading: "جاري التحميل...", empty: "لم يتم العثور على أي محادثة.", archivedDone: "تمت أرشفة المحادثة.", restoredDone: "تمت استعادة المحادثة.", archivedBadge: "مؤرشفة", activeBadge: "نشطة", noPreview: "لا توجد معاينة", messages: "رسالة", restore: "استرجاع", archive: "أرشفة" },
+  ar: { title: "??? ?????????", subtitle: "???? ??? ???????? ?? ?? ???????? ?? ?????????.", search: "???...", active: "????", archived: "??????", newest: "??????", oldest: "??????", loading: "???? ???????...", empty: "?? ??? ?????? ??? ?? ??????.", archivedDone: "??? ????? ????????.", restoredDone: "??? ??????? ????????.", archivedBadge: "??????", activeBadge: "????", noPreview: "?? ???? ??????", messages: "?????", restore: "???????", archive: "?????" },
 } as const;
 
 function Icon({ children }: { children: React.ReactNode }) {
@@ -30,7 +30,7 @@ function sortConversations(items: ConversationSummary[], order: "desc" | "asc") 
 }
 
 export default function ConversationsHistoryPage() {
-  const { language, locale } = useI18n();
+  const { language, locale, t } = useI18n();
   const l = labels[language];
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +92,8 @@ export default function ConversationsHistoryPage() {
   return (
     <div className="mx-auto max-w-5xl grid gap-4">
       <section className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-lg">
-        <h1 className="text-xl font-bold text-slate-900">{l.title}</h1>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{t("claims.userArea")}</p>
+        <h1 className="mt-2 text-xl font-bold text-slate-900">{l.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{l.subtitle}</p>
         <div className="relative mt-4">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Icon><circle cx="11" cy="11" r="7" /><path d="m20 20-4.2-4.2" /></Icon></span>
@@ -112,3 +113,6 @@ export default function ConversationsHistoryPage() {
     </div>
   );
 }
+
+
+

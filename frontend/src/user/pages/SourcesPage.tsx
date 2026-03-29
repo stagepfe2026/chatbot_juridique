@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getSources } from "../../services/user.service";
 import type { SourceItem } from "../../models/chat.models";
@@ -7,11 +7,11 @@ import { useI18n } from "../../i18n/I18nContext";
 const labels = {
   fr: { invalidQuestion: "Question invalide.", loadError: "Erreur de chargement des sources.", title: "Sources", subtitle: "Justificatifs utilises pour generer la reponse.", back: "Retour au chat", loading: "Chargement des sources...", empty: "Aucune source trouvee.", document: "Document" },
   en: { invalidQuestion: "Invalid question.", loadError: "Error while loading sources.", title: "Sources", subtitle: "Evidence used to generate the answer.", back: "Back to chat", loading: "Loading sources...", empty: "No sources found.", document: "Document" },
-  ar: { invalidQuestion: "السؤال غير صالح.", loadError: "خطأ أثناء تحميل المصادر.", title: "المصادر", subtitle: "المراجع المستعملة لتوليد الجواب.", back: "العودة إلى الدردشة", loading: "جاري تحميل المصادر...", empty: "لم يتم العثور على مصادر.", document: "وثيقة" },
+  ar: { invalidQuestion: "?????? ??? ????.", loadError: "??? ????? ????? ???????.", title: "???????", subtitle: "??????? ????????? ?????? ??????.", back: "?????? ??? ???????", loading: "???? ????? ???????...", empty: "?? ??? ?????? ??? ?????.", document: "?????" },
 } as const;
 
 export default function SourcesPage() {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const l = labels[language];
   const { questionId } = useParams();
   const [sources, setSources] = useState<SourceItem[]>([]);
@@ -43,7 +43,7 @@ export default function SourcesPage() {
   return (
     <div className="grid gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h1 className="text-3xl font-black tracking-tight text-slate-900">{l.title}</h1><p className="mt-2 text-sm font-medium text-slate-500">{l.subtitle}</p></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{t("claims.userArea")}</p><h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">{l.title}</h1><p className="mt-2 text-sm font-medium text-slate-500">{l.subtitle}</p></div>
         <Link to="/user/chat" className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600">{l.back}</Link>
       </div>
       {loading && <div className="rounded-[28px] border border-white/80 bg-white/85 px-5 py-8 text-sm font-semibold text-slate-500 shadow-lg">{l.loading}</div>}
@@ -53,3 +53,5 @@ export default function SourcesPage() {
     </div>
   );
 }
+
+

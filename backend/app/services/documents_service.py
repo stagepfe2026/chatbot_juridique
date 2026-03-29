@@ -225,7 +225,7 @@ def delete_document_permanently(document_id: str) -> None:
             detail="Suppression Qdrant impossible: %s" % (exc,),
         ) from exc
 
-    raw = _documents_repo.hard_delete_document(document_id)
+    raw = _documents_repo.soft_delete_document(document_id)
 
     file_path = raw.get("filePath")
     if isinstance(file_path, str) and file_path.strip():
@@ -558,3 +558,4 @@ def set_document_favorite(document_id: str, *, is_favored: bool) -> DocumentFavo
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
     return DocumentFavoriteResponse(documentId=document_id, isFavored=doc.is_favored)
+

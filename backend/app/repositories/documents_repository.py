@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from bson import ObjectId
 from fastapi import HTTPException, status
+from pymongo import ReturnDocument
 
 from app.database.connections import get_documents_collection
 from app.models import DocumentModel
@@ -207,13 +208,24 @@ class DocumentsRepository:
         query = self.build_search_query(terms=terms, category=category, date_from=date_from, date_to=date_to)
         cursor = get_documents_collection().find(query).sort(sort_field, sort_dir).skip(skip).limit(limit)
         return [DocumentModel.from_mongo(item) for item in cursor]
-
     def hard_delete_document(self, document_id: str) -> dict[str, Any]:
         oid = self._parse_document_id(document_id)
         raw = get_documents_collection().find_one({"_id": oid})
         if not raw:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
         get_documents_collection().delete_one({"_id": oid})
+        return raw
+
+    def soft_delete_document(self, document_id: str) -> dict[str, Any]:
+        oid = self._parse_document_id(document_id)
+        deleted_at = datetime.now(timezone.utc)
+        raw = get_documents_collection().find_one_and_update(
+            {"_id": oid, "deletedAt": None},
+            {"$set": {"deletedAt": deleted_at}},
+            return_document=ReturnDocument.AFTER,
+        )
+        if not raw:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document introuvable.")
         return raw
 
     def get_document_raw_by_id(self, document_id: str) -> dict[str, Any] | None:
@@ -225,3 +237,5 @@ class DocumentsRepository:
             return ObjectId(document_id)
         except Exception as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="documentId invalide.") from exc
+
+
