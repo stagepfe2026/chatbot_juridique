@@ -3,7 +3,7 @@ import type { UserRole } from "../models/auth.models";
 import { useAuth } from "./AuthContext";
 
 function roleHomePath(role: UserRole): string {
-  return role === "ADMIN" ? "/admin/documents" : "/user/accueil";
+  return role === "ADMIN" ? "/admin/documents/import" : "/user/accueil";
 }
 
 export function RequireAuth({ children, allowedRoles }: { children: React.ReactElement; allowedRoles: UserRole[] }) {

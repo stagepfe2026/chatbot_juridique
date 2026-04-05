@@ -15,6 +15,7 @@ _DROP_POS = {"DET", "ADP", "CCONJ", "SCONJ"}
 _KEEP_LEMMAS = {"non"}
 
 
+# Charge et reutilise le pipeline spaCy necessaire au traitement linguistique.
 def get_nlp():
     # Charge spaCy une seule fois (lazy singleton).
     global _nlp
@@ -25,45 +26,48 @@ def get_nlp():
     return _nlp
 
 
-def split_sentences(raw_text: str) -> list[str]:
-    normalized = unicodedata.normalize("NFKC", raw_text or "")
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    if not normalized:
-        return []
+# Unused NLP helpers kept only as commented reference.
+# def split_sentences(raw_text: str) -> list[str]:
+#     normalized = unicodedata.normalize("NFKC", raw_text or "")
+#     normalized = re.sub(r"\s+", " ", normalized).strip()
+#     if not normalized:
+#         return []
+#
+#     nlp = get_nlp()
+#     doc = nlp(normalized)
+#     return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
+#
+#
+# def tokenize_and_lemmatize(sentence: str) -> list[str]:
+#     nlp = get_nlp()
+#     doc = nlp(sentence)
+#     tokens: list[str] = []
+#
+#     for token in doc:
+#         if token.is_space:
+#             continue
+#         if token.is_stop and token.lemma_.lower() not in _KEEP_LEMMAS:
+#             continue
+#         if token.pos_ in _DROP_POS and token.lemma_.lower() not in _KEEP_LEMMAS:
+#             continue
+#         if token.like_num:
+#             tokens.append(token.text)
+#             continue
+#         if token.is_punct and token.text not in {".", ",", ";", ":", "(", ")", "-", "/"}:
+#             continue
+#
+#         lemma = token.lemma_.strip()
+#         if not lemma or lemma == "-PRON-":
+#             lemma = token.text
+#         lemma = re.sub(r"\s+", "", lemma.lower())
+#         if lemma:
+#             tokens.append(lemma)
+#
+#     return tokens
+#
+#
 
-    nlp = get_nlp()
-    doc = nlp(normalized)
-    return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
-
-
-def tokenize_and_lemmatize(sentence: str) -> list[str]:
-    nlp = get_nlp()
-    doc = nlp(sentence)
-    tokens: list[str] = []
-
-    for token in doc:
-        if token.is_space:
-            continue
-        if token.is_stop and token.lemma_.lower() not in _KEEP_LEMMAS:
-            continue
-        if token.pos_ in _DROP_POS and token.lemma_.lower() not in _KEEP_LEMMAS:
-            continue
-        if token.like_num:
-            tokens.append(token.text)
-            continue
-        if token.is_punct and token.text not in {".", ",", ";", ":", "(", ")", "-", "/"}:
-            continue
-
-        lemma = token.lemma_.strip()
-        if not lemma or lemma == "-PRON-":
-            lemma = token.text
-        lemma = re.sub(r"\s+", "", lemma.lower())
-        if lemma:
-            tokens.append(lemma)
-
-    return tokens
-
-
+# Normalise legerement le texte brut sans casser sa structure juridique.
 def clean_text(raw_text: str) -> str:
     # Conserve la formulation juridique originale; on limite le nettoyage a une normalisation legere.
     if not raw_text:
@@ -77,6 +81,7 @@ def clean_text(raw_text: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
+# Redecoupe un bloc juridique trop long en sous-chunks adaptes a l'indexation.
 def _split_large_legal_block(block: str) -> list[str]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=settings.chunk_size,
@@ -86,6 +91,7 @@ def _split_large_legal_block(block: str) -> list[str]:
     return [chunk.strip() for chunk in splitter.split_text(block) if chunk.strip()]
 
 
+# Essaie de separer un texte juridique par entetes d'articles.
 def _split_by_article(text: str) -> list[str]:
     matches = list(_ARTICLE_HEADING_RE.finditer(text))
     if not matches:
@@ -105,6 +111,7 @@ def _split_by_article(text: str) -> list[str]:
     return blocks
 
 
+# Produit les chunks finaux en privilegiant un decoupage juridique par article.
 def chunk_text(text: str) -> list[str]:
     # Decoupe juridique: d'abord par article, puis sous-chunks si un article est trop long.
     clean = str(text or "").strip()
@@ -124,6 +131,7 @@ def chunk_text(text: str) -> list[str]:
     return _split_large_legal_block(clean)
 
 
+# Elimine les doublons et quasi-doublons issus du decoupage.
 def unique_chunks(chunks: list[str]) -> list[str]:
     seen: set[str] = set()
     output: list[str] = []
@@ -139,6 +147,7 @@ def unique_chunks(chunks: list[str]) -> list[str]:
     return output
 
 
+# Mesure la similarite lexicale entre deux chunks pour filtrer les doublons proches.
 def _token_jaccard(a: str, b: str) -> float:
     a_tokens = set(a.split())
     b_tokens = set(b.split())

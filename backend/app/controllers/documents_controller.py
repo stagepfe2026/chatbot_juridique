@@ -5,6 +5,7 @@ from fastapi import HTTPException, UploadFile, status
 from app.schemas import DocumentCategory
 from app.services.documents_service import (
     delete_document_permanently,
+    download_original_document,
     get_document_points,
     get_qdrant_health_status,
     get_qdrant_stats,
@@ -59,6 +60,10 @@ def index_existing_documents_controller():
 
 def index_one_document_controller(document_id: str):
     return index_single_document(document_id)
+
+
+async def download_document_controller(document_id: str):
+    return await download_original_document(document_id)
 
 
 def qdrant_health_controller():

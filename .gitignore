@@ -1,31 +1,69 @@
+*# =========================
 # Python
+# =========================
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.log
+*.sqlite3
 
-# Virtual envs
+# =========================
+# Virtual environments
+# =========================
 venv/
 .venv/
 env/
 **/venv/
 **/.venv/
 
+# =========================
 # Node / Frontend
+# =========================
 node_modules/
 dist/
 build/
 .vite/
+*.tsbuildinfo
 
-# Env
+# =========================
+# Environment variables
+# =========================
 .env
 *.env
 
+# =========================
 # IDE / OS
+# =========================
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
+
+# =========================
+# 🔥 AI / RAG / Generated data (IMPORTANT)
+# =========================
+backend/data/fastembed_cache/
+backend/data/pdf_cache/
+backend/data/indexing_results/
+
+# Optional: ignore all data folder (if you never want to push data)
+# backend/data/
+
+# =========================
+# Logs & temp
+# =========================
+*.log
+tmp/
+temp/
+
+# =========================
+# Model files (if you add later)
+# =========================
+*.pt
+*.bin
+*.model
+*.onnx
 
 # Windows download markers
 *:Zone.Identifier

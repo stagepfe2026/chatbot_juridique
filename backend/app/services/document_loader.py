@@ -5,6 +5,7 @@ import pdfplumber
 from fastapi import HTTPException, status
 
 
+# Detecte le type du fichier et lance l'extracteur de texte approprie.
 def extract_text_from_path(file_path: str) -> str:
     # Détecte le type de fichier et délègue à l'extracteur adapté.
     path = Path(file_path)
@@ -26,6 +27,7 @@ def extract_text_from_path(file_path: str) -> str:
     )
 
 
+# Extrait puis concatene le texte de toutes les pages d'un PDF.
 def _extract_pdf(path: Path) -> str:
     # Concatène le texte extrait de chaque page PDF.
     pages: list[str] = []
@@ -35,6 +37,6 @@ def _extract_pdf(path: Path) -> str:
     return "\n".join(pages).strip()
 
 
+# Extrait le texte brut d'un document Word DOCX.
 def _extract_docx(path: Path) -> str:
-    # Extraction texte DOCX via docx2txt.
     return docx2txt.process(str(path)).strip()

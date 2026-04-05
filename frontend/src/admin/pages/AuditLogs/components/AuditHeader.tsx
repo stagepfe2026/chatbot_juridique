@@ -15,17 +15,15 @@ function ToolbarIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AuditHeader({ totalLogs, onRefresh, onExport }: AuditHeaderProps) {
+export function AuditHeader({ onRefresh, onExport }: AuditHeaderProps) {
   return (
     <section>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight  text-black capitalize py-3">Journal des activités</h1>
+          <h1 className="mt-1 py-3 text-2xl font-bold tracking-tight text-red-700 capitalize">Journal des activites</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-       
-
           <button
             type="button"
             onClick={onRefresh}
@@ -55,3 +53,5 @@ export function AuditHeader({ totalLogs, onRefresh, onExport }: AuditHeaderProps
     </section>
   );
 }
+
+

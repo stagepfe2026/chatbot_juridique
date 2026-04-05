@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -34,17 +35,26 @@ class ClaimsRepository:
 
     def reply_to_claim(self, claim_id: str, *, admin_email: str, message: str) -> ClaimModel | None:
         now = datetime.now(timezone.utc)
+        normalized_email = admin_email.strip().lower()
         result = get_claims_collection().update_one(
             {"_id": self._parse_claim_id(claim_id)},
             {
                 "$set": {
-                    "status": "ANSWERED",
+                    "status": "RESOLVED",
                     "adminReply": message.strip(),
                     "adminReplyAt": now,
-                    "adminReplyBy": admin_email.strip().lower(),
+                    "adminReplyBy": normalized_email,
                     "isReplyReadByUser": False,
                     "updatedAt": now,
-                }
+                },
+                "$push": {
+                    "activityLog": {
+                        "id": uuid4().hex,
+                        "description": "Reponse admin envoyee",
+                        "actorName": normalized_email,
+                        "createdAt": now,
+                    }
+                },
             },
         )
         if result.matched_count == 0:

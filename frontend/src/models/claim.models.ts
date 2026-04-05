@@ -1,5 +1,6 @@
 export type ClaimCategory = "ACCOUNT" | "CHATBOT" | "DOCUMENT" | "OTHER";
 export type ClaimStatus = "SUBMITTED" | "UNDER_REVIEW" | "PROCESSING" | "RESOLVED" | "CLOSED" | "ANSWERED";
+export type ClaimDisplayStatus = "SUBMITTED" | "UNDER_REVIEW" | "PROCESSING" | "RESOLVED" | "CLOSED";
 export type ClaimPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 export type ClaimSlaStatus = "ON_TIME" | "LATE";
 export type ClaimMessageAuthorType = "USER" | "ADMIN" | "SYSTEM";
@@ -27,6 +28,7 @@ export interface ClaimReplyRequest {
 export interface ClaimAssignedAgent {
   id: string;
   name: string;
+  email?: string;
 }
 
 export interface ClaimConversationMessage {
@@ -81,6 +83,18 @@ export interface Claim {
 
 export type ClaimListItem = Claim;
 
+export interface ClaimStats {
+  total: number;
+  pending: number;
+  inProgress: number;
+  resolved: number;
+  urgentOpen: number;
+  overdue: number;
+  averageFirstResponseHours: number;
+  lastUpdatedAt?: string | null;
+  createdAt?: string | null;
+}
+
 export interface ClaimUnreadCount {
   count: number;
 }
@@ -107,6 +121,10 @@ export const claimStatusLabels: Record<ClaimStatus, string> = {
   CLOSED: "Fermee",
   ANSWERED: "Resolue",
 };
+
+export function normalizeClaimStatus(status: ClaimStatus): ClaimDisplayStatus {
+  return status === "ANSWERED" ? "RESOLVED" : status;
+}
 
 export const claimSlaLabels: Record<ClaimSlaStatus, string> = {
   ON_TIME: "Dans les delais",

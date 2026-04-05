@@ -24,6 +24,7 @@ class ClaimModel:
     is_reply_read_by_user: bool
     created_at: datetime
     updated_at: datetime
+    activity_log: list[dict[str, Any]]
     ticket_number: str | None = None
     id: str | None = None
 
@@ -40,9 +41,10 @@ class ClaimModel:
         attachments: list[dict[str, Any]],
     ) -> "ClaimModel":
         now = datetime.now(timezone.utc)
+        normalized_email = user_email.strip().lower()
         return cls(
             user_id=user_id,
-            user_email=user_email.strip().lower(),
+            user_email=normalized_email,
             category=category.strip(),
             priority=priority.strip() or "NORMAL",
             subject=subject.strip(),
@@ -55,6 +57,14 @@ class ClaimModel:
             is_reply_read_by_user=True,
             created_at=now,
             updated_at=now,
+            activity_log=[
+                {
+                    "id": uuid4().hex,
+                    "description": "Reclamation creee",
+                    "actorName": normalized_email,
+                    "createdAt": now,
+                }
+            ],
             ticket_number=_generate_ticket_number(now),
         )
 
@@ -62,7 +72,9 @@ class ClaimModel:
     def from_mongo(cls, raw: dict[str, Any]) -> "ClaimModel":
         created_at = raw.get("createdAt") or datetime.now(timezone.utc)
         attachments_raw = raw.get("attachments")
+        activity_log_raw = raw.get("activityLog")
         attachments = [item for item in attachments_raw if isinstance(item, dict)] if isinstance(attachments_raw, list) else []
+        activity_log = [item for item in activity_log_raw if isinstance(item, dict)] if isinstance(activity_log_raw, list) else []
         return cls(
             id=str(raw.get("_id")) if raw.get("_id") is not None else None,
             ticket_number=str(raw.get("ticketNumber", "")).strip() or None,
@@ -80,6 +92,7 @@ class ClaimModel:
             is_reply_read_by_user=bool(raw.get("isReplyReadByUser", True)),
             created_at=created_at,
             updated_at=raw.get("updatedAt") or created_at,
+            activity_log=activity_log,
         )
 
     def to_mongo_insert(self) -> dict[str, Any]:
@@ -99,4 +112,5 @@ class ClaimModel:
             "isReplyReadByUser": self.is_reply_read_by_user,
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
+            "activityLog": self.activity_log,
         }

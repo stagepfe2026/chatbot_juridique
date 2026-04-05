@@ -185,7 +185,7 @@ export default function AuditLogsPage() {
     }),
     [filteredLogs],
   );
-
+ 
   const timelineLogs = useMemo(
     () =>
       [...filteredLogs]
@@ -224,7 +224,7 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="audit-logs-page grid gap-5">
       <AuditHeader totalLogs={logs.length} onRefresh={() => void refreshView()} onExport={() => setIsExportDialogOpen(true)} />
 
       <AuditStats total={stats.total} success={stats.success} failed={stats.failed} critical={stats.critical} />
@@ -317,6 +317,7 @@ export default function AuditLogsPage() {
     </div>
   );
 }
+
 
 
 

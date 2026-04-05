@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     qdrant_collection_name: str = "juridique_docs"
 
     embedding_model: str = "intfloat/multilingual-e5-large"
+    fastembed_cache_dir: str = "data/fastembed_cache"
     spacy_model: str = "fr_core_news_sm"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
@@ -75,5 +76,10 @@ class Settings(BaseSettings):
     def pdf_cache_path(self) -> Path:
         return Path(self.pdf_cache_dir).resolve()
 
+    @property
+    def fastembed_cache_path(self) -> Path:
+        return Path(self.fastembed_cache_dir).resolve()
+
 
 settings = Settings()
+

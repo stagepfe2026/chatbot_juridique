@@ -4,30 +4,27 @@ from uuid import NAMESPACE_URL, uuid5
 
 from fastapi import HTTPException, status
 from langchain_core.documents import Document
-from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client.http import models
 
 from app.core.config import settings
 from app.database.connections import qdrant_client
 from app.repositories import DocumentsRepository
+from app.rag.embeddings import get_embeddings
 from app.schemas import DocumentStatus
 from app.services.document_loader import extract_text_from_path
 from app.services.text_processing import chunk_text, clean_text, unique_chunks
 
-_embeddings = None
 _vector_store = None
 _documents_repo = DocumentsRepository()
 
 
+# Retourne l'instance partagee du modele d'embedding pour l'indexation.
 def _get_cached_embedding_model():
-    # Cache local du modèle d'embedding pour éviter les rechargements.
-    global _embeddings
-    if _embeddings is None:
-        _embeddings = FastEmbedEmbeddings(model_name=settings.embedding_model)
-    return _embeddings
+    # Cache local du modele d'embedding pour eviter les rechargements.
+    return get_embeddings()
 
-
+# Garantit que la collection Qdrant existe avant toute lecture ou ecriture.
 def _ensure_qdrant_collection_exists():
     # Crée la collection Qdrant si elle n'existe pas.
     embeddings = _get_cached_embedding_model()
@@ -41,6 +38,7 @@ def _ensure_qdrant_collection_exists():
         )
 
 
+# Retourne le vector store Qdrant initialise une seule fois.
 def _get_cached_vector_store():
     global _vector_store
     if _vector_store is None:
@@ -53,11 +51,13 @@ def _get_cached_vector_store():
     return _vector_store
 
 
+# Construit un identifiant stable pour chaque chunk d'un document.
 def _chunk_point_id(document_id: str, chunk_index: int) -> str:
     # Qdrant accepts UUID strings or uint64 IDs. Use deterministic UUID per chunk.
     return str(uuid5(NAMESPACE_URL, f"{document_id}:{chunk_index}"))
 
 
+# Ecrit un rapport texte de l'indexation pour faciliter le debug et le suivi.
 def _write_indexing_result(
     *,
     document_id: str,
@@ -87,6 +87,7 @@ def _write_indexing_result(
     return str(output_path)
 
 
+# Recupere le texte du document depuis le champ content ou depuis le fichier source.
 def _resolve_document_text_content(doc: dict[str, Any]) -> str:
     if isinstance(doc.get("content"), str) and doc["content"].strip():
         return doc["content"]
@@ -100,6 +101,7 @@ def _resolve_document_text_content(doc: dict[str, Any]) -> str:
     return extract_text_from_path(file_path)
 
 
+# Lance tout le pipeline d'indexation d'un document jusqu'a son insertion dans Qdrant.
 def index_document_by_id(document_id: str) -> int:
     # Pipeline complet: extraction -> nettoyage -> chunks -> embeddings -> Qdrant.
     _ensure_qdrant_collection_exists()
@@ -193,6 +195,7 @@ def index_document_by_id(document_id: str) -> int:
         raise
 
 
+# Indexe en lot tous les documents actifs encore non indexes.
 def index_pending_documents() -> tuple[int, int, int]:
     # Indexe tous les documents en attente.
     doc_ids = _documents_repo.list_non_indexed_active_document_ids()
@@ -209,6 +212,7 @@ def index_pending_documents() -> tuple[int, int, int]:
     return len(doc_ids), indexed, failed
 
 
+# Retourne un etat simple de disponibilite de Qdrant et de la collection cible.
 def qdrant_health() -> dict[str, Any]:
     try:
         collections = qdrant_client.get_collections()
@@ -226,6 +230,7 @@ def qdrant_health() -> dict[str, Any]:
         ) from exc
 
 
+# Retourne les statistiques utiles de la collection Qdrant courante.
 def qdrant_collection_stats() -> dict[str, Any]:
     try:
         _ensure_qdrant_collection_exists()
@@ -243,6 +248,7 @@ def qdrant_collection_stats() -> dict[str, Any]:
         ) from exc
 
 
+# Liste les points Qdrant associes a un document pour inspection technique.
 def list_qdrant_points_for_document(document_id: str, limit: int = 100) -> list[dict[str, Any]]:
     _ensure_qdrant_collection_exists()
     points, _ = qdrant_client.scroll(
@@ -269,4 +275,5 @@ def list_qdrant_points_for_document(document_id: str, limit: int = 100) -> list[
             }
         )
     return serialized
+
 

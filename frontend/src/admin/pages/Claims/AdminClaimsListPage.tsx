@@ -45,18 +45,17 @@ export default function AdminClaimsListPage() {
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Gestion des reclamations</h1>
             <p className="mt-1 text-sm text-slate-500">Vue principale inspiree d'un support center avec filtres, priorites et acces detaille.</p>
           </div>
-          <Link to="/admin/dashboard" className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600">
-            Retour dashboard
-          </Link>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Recherche libre" className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-50 xl:col-span-2" />
           <select value={status} onChange={(event) => setStatus(event.target.value as ClaimStatus | "")} className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-50">
             <option value="">Tous statuts</option>
-            <option value="PENDING">{claimStatusLabels.PENDING}</option>
-            <option value="IN_PROGRESS">{claimStatusLabels.IN_PROGRESS}</option>
+            <option value="SUBMITTED">{claimStatusLabels.SUBMITTED}</option>
+            <option value="UNDER_REVIEW">{claimStatusLabels.UNDER_REVIEW}</option>
+            <option value="PROCESSING">{claimStatusLabels.PROCESSING}</option>
             <option value="RESOLVED">{claimStatusLabels.RESOLVED}</option>
+            <option value="CLOSED">{claimStatusLabels.CLOSED}</option>
           </select>
           <select value={category} onChange={(event) => setCategory(event.target.value as ClaimCategory | "")} className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-50">
             <option value="">Toutes categories</option>
@@ -68,7 +67,7 @@ export default function AdminClaimsListPage() {
           <select value={priority} onChange={(event) => setPriority(event.target.value as ClaimPriority | "")} className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-50">
             <option value="">Toutes priorites</option>
             <option value="NORMAL">{claimPriorityLabels.NORMAL}</option>
-            <option value="IMPORTANT">{claimPriorityLabels.IMPORTANT}</option>
+            <option value="HIGH">{claimPriorityLabels.HIGH}</option>
             <option value="URGENT">{claimPriorityLabels.URGENT}</option>
           </select>
           <div className="grid grid-cols-2 gap-3 xl:col-span-2">
@@ -118,8 +117,8 @@ export default function AdminClaimsListPage() {
                     </td>
                     <td className="px-3 py-4">{claimCategoryLabels[claim.category]}</td>
                     <td className="px-3 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(claim.status)}`}>{claimStatusLabels[claim.status]}</span></td>
-                    <td className="px-3 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(claim.priority)}`}>{claimPriorityLabels[claim.priority]}</span></td>
-                    <td className="px-3 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${slaBadgeClass(claim.slaStatus)}`}>{claim.slaStatus}</span></td>
+                    <td className="px-3 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(claim.priority ?? "NORMAL")}`}>{claimPriorityLabels[claim.priority ?? "NORMAL"]}</span></td>
+                    <td className="px-3 py-4">{claim.slaStatus ? <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${slaBadgeClass(claim.slaStatus)}`}>{claim.slaStatus}</span> : <span className="text-slate-400">-</span>}</td>
                     <td className="px-3 py-4">{formatClaimDate(claim.createdAt)}</td>
                     <td className="px-3 py-4">{claim.messageCount}</td>
                   </tr>

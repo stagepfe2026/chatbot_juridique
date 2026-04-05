@@ -12,6 +12,7 @@ _messages_repo = MessagesRepository()
 _llm = None
 
 
+# Initialise une seule fois le modele utilise pour resumer les conversations.
 def _get_llm():
     global _llm
     if _llm is None:
@@ -23,10 +24,12 @@ def _get_llm():
     return _llm
 
 
+# Retourne une conversation existante ou en cree une nouvelle si besoin.
 def ensure_conversation(conversation_id: str | None, user_id: str | None = None) -> str:
     return _conversations_repo.ensure_exists(conversation_id, user_id=user_id)
 
 
+# Persiste un message et met a jour la date de derniere activite de la conversation.
 def save_message(conversation_id: str, role: str, content: str, *, question_id: str | None = None, source_file: dict | None = None) -> str:
     if role not in {"user", "assistant"}:
         raise ValueError("role invalide")
@@ -37,11 +40,13 @@ def save_message(conversation_id: str, role: str, content: str, *, question_id: 
     return message_id
 
 
+# Recupere les derniers messages utiles au contexte conversationnel.
 def get_last_messages(conversation_id: str, limit: int) -> list[dict[str, str]]:
     items = _messages_repo.list_last_messages(conversation_id, limit=max(1, limit))
     return [{"role": item.role, "content": item.content} for item in items]
 
 
+# Lit le resume courant d'une conversation si elle existe.
 def get_conversation_summary(conversation_id: str) -> str:
     conversation = _conversations_repo.get_conversation_by_id(conversation_id)
     if not conversation:
@@ -49,6 +54,7 @@ def get_conversation_summary(conversation_id: str) -> str:
     return conversation.summary
 
 #préparer les messages pour le prompt de résumé
+# Formate les derniers messages pour les injecter proprement dans le prompt de resume.
 def _format_recent_messages(messages: list[dict[str, str]]) -> str:
     rendered = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
     max_chars = max(500, settings.memory_recent_messages_max_chars)
@@ -57,6 +63,7 @@ def _format_recent_messages(messages: list[dict[str, str]]) -> str:
     return rendered[-max_chars:]
 
 #extrait les derniéres questions utilsateur 
+# Extrait les derniers points utilisateur pour aider le LLM a couvrir le bon contexte.
 def _build_coverage_hints(messages: list[dict[str, str]]) -> str:
     user_questions = [m["content"].strip() for m in messages if m.get("role") == "user" and m.get("content")]
     if not user_questions:
@@ -65,6 +72,7 @@ def _build_coverage_hints(messages: list[dict[str, str]]) -> str:
     return "\n".join([f"- {item}" for item in recent])
 
 #Nettoie le résumé généré par le LLM.(duplications , lignes vide)
+# Nettoie le resume genere en supprimant bruit, doublons et entetes inutiles.
 def _clean_summary_text(raw: str) -> str:
     text = raw.strip()
     if not text:
@@ -98,6 +106,7 @@ def _clean_summary_text(raw: str) -> str:
     return "\n".join(deduped[:10]).strip()
 
 #Met à jour le résumé de la conversation en se basant sur les derniers messages et l'ancien résumé.
+# Regenere puis sauvegarde un resume compact de la conversation.
 def update_conversation_summary(conversation_id: str) -> str:
     previous_summary = get_conversation_summary(conversation_id)
     recent_messages = get_last_messages(conversation_id, settings.summary_recent_messages_limit)
@@ -122,6 +131,7 @@ def update_conversation_summary(conversation_id: str) -> str:
         return previous_summary
 
 
+# Cree les index necessaires au stockage performant des conversations et messages.
 def ensure_conversation_memory_indexes() -> None:
     _conversations_repo.ensure_indexes()
     _messages_repo.ensure_indexes()

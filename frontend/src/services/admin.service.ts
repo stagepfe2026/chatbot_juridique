@@ -3,6 +3,12 @@ import type { Conversation } from "../models/conversation.models";
 import type { Document, ImportDocumentForm, ImportDocumentResponse } from "../models/document.models";
 import type { AuditLog } from "../admin/pages/AuditLogs/auditLogs.types";
 
+export interface ReindexDocumentResponse {
+  documentId: string;
+  status: "INDEXED";
+  chunksCount: number;
+}
+
 export async function importDocument(form: ImportDocumentForm): Promise<ImportDocumentResponse> {
   if (!form.file) {
     throw new Error("Fichier obligatoire.");
@@ -39,6 +45,15 @@ export async function listDocuments(): Promise<Document[]> {
   if (payload && Array.isArray(payload.data)) return payload.data;
   if (payload && Array.isArray(payload.items)) return payload.items;
   return [];
+}
+
+export async function reindexDocument(documentId: string): Promise<ReindexDocumentResponse> {
+  const res = await httpClient.post<ReindexDocumentResponse>(`/admin/documents/${documentId}/index`);
+  return res.data;
+}
+
+export function getAdminDocumentDownloadUrl(documentId: string): string {
+  return `/api/admin/documents/${documentId}/download`;
 }
 
 export async function listConversations(): Promise<Conversation[]> {

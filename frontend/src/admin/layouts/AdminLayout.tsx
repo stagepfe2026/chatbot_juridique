@@ -24,8 +24,8 @@ export default function AdminLayout() {
   }
 
   const sidebarClass = isDark
-    ? "fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-slate-800 bg-slate-950 text-slate-100"
-    : "fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-[#efe5e1] bg-[#fcf9f8] text-[#2b2523]";
+    ? "admin-sidebar fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-slate-800 bg-slate-950 text-slate-100"
+    : "admin-sidebar fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-[#efe5e1] bg-[#fcf9f8] text-[#2b2523]";
 
   const navIdleClass = isDark
     ? "text-slate-300 hover:bg-slate-900"
@@ -40,21 +40,15 @@ export default function AdminLayout() {
   const roleLabel = user?.role === "ADMIN" ? "Admin" : "Utilisateur";
 
   return (
-    <div className={isDark ? "min-h-screen bg-slate-950 text-slate-100" : "min-h-screen bg-[#f8f4f3] text-[#1f1b1a]"}>
+    <div className={isDark ? "admin-shell min-h-screen bg-slate-950 text-slate-100" : "admin-shell min-h-screen bg-[#f8f4f3] text-[#1f1b1a]"}>
       <div className="min-h-screen">
-        {/* Sidebar */}
         <aside className={sidebarClass}>
-          {/* Brand */}
           <div className="px-5 pb-4 pt-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#DA3D20] text-white shadow-lg">
-                <Icon>
-                  <path d="M12 21s-6-4.35-8.5-8A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 20.5 13C18 16.65 12 21 12 21z" />
-                </Icon>
-              </div>
+              
 
               <div>
-                <div className="text-lg font-semibold leading-none tracking-tight">JurisBot</div>
+                <div className="text-lg font-semibold leading-none tracking-tight">Jurisphere</div>
                 <div
                   className={
                     isDark
@@ -68,7 +62,6 @@ export default function AdminLayout() {
             </div>
           </div>
 
-          {/* Section */}
           <div
             className={
               isDark
@@ -79,7 +72,6 @@ export default function AdminLayout() {
             Overview
           </div>
 
-          {/* Navigation */}
           <nav className="mt-3 flex flex-col gap-0.5 px-3 [&_a]:no-underline">
             <NavLink
               to="/admin/documents/import"
@@ -140,8 +132,7 @@ export default function AdminLayout() {
             </NavLink>
           </nav>
 
-          {/* Footer area */}
-          <div className="mt-auto border-t border-[#efe5e1] px-4 py-4 dark:border-slate-800">
+          <div className={isDark ? "mt-auto border-t border-slate-800 px-4 py-4" : "mt-auto border-t border-[#efe5e1] px-4 py-4"}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#DA3D20] text-sm font-semibold text-white">
@@ -156,37 +147,60 @@ export default function AdminLayout() {
                 </div>
               </div>
 
-              <button
-                onClick={onLogout}
-                className={
-                  isDark
-                    ? "flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-900 hover:text-red-400"
-                    : "flex h-9 w-9 items-center justify-center rounded-lg text-[#6b5f5a] transition hover:bg-[#fff1ec] hover:text-[#DA3D20]"
-                }
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M10 17l5-5-5-5" />
-                  <path d="M15 12H3" />
-                  <path d="M21 3v18" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={isDark ? "Passer au mode clair" : "Passer au mode sombre"}
+                  title={isDark ? "Mode clair" : "Mode sombre"}
+                  className={
+                    isDark
+                      ? "flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800/80 bg-[#181112] text-slate-300 transition hover:border-[#7b5e54] hover:bg-slate-900 hover:text-amber-300"
+                      : "flex h-9 w-9 items-center justify-center rounded-lg text-[#6b5f5a] transition hover:bg-[#fff7e8] hover:text-[#d97706]"
+                  }
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+                    {isDark ? (
+                      <>
+                        <circle cx="12" cy="12" r="4" />
+                        <path d="M12 2v2" />
+                        <path d="M12 20v2" />
+                        <path d="m4.93 4.93 1.41 1.41" />
+                        <path d="m17.66 17.66 1.41 1.41" />
+                        <path d="M2 12h2" />
+                        <path d="M20 12h2" />
+                        <path d="m4.93 19.07 1.41-1.41" />
+                        <path d="m17.66 6.34 1.41-1.41" />
+                      </>
+                    ) : (
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
+                    )}
+                  </svg>
+                </button>
+
+                <button
+                  onClick={onLogout}
+                  aria-label="Deconnexion"
+                  title="Deconnexion"
+                  className={
+                    isDark
+                      ? "flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800/80 bg-[#181112] text-slate-300 transition hover:border-[#7b5e54] hover:bg-slate-900 hover:text-red-400"
+                      : "flex h-9 w-9 items-center justify-center rounded-lg text-[#6b5f5a] transition hover:bg-[#fff1ec] hover:text-[#DA3D20]"
+                  }
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10 17l5-5-5-5" />
+                    <path d="M15 12H3" />
+                    <path d="M21 3v18" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </aside>
 
-        {/* Main */}
-        <main className="ml-[260px] min-h-screen">
-          {/* Top bar */}
-          <div
-            className={
-              isDark
-                ? "sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 backdrop-blur"
-                : "sticky top-0 z-20 border-b border-[#efe5e1] bg-[#f8f4f3]/90 backdrop-blur"
-            }
-          ></div>
-
-          {/* Content */}
-          <div className="px-6 py-6">
+        <main className={isDark ? "admin-main ml-[260px] min-h-screen bg-[#0f172a]" : "admin-main ml-[260px] min-h-screen bg-[#F3F4F4]"}>
+          <div className="admin-content px-6 py-6">
             <Outlet />
           </div>
         </main>
@@ -194,3 +208,4 @@ export default function AdminLayout() {
     </div>
   );
 }
+

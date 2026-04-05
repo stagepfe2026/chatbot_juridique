@@ -5,7 +5,7 @@ import cimfLogo from "../assets/cimf-logo.svg";
 import { useAuth } from "../auth/AuthContext";
 
 function getHomePath(role: "ADMIN" | "FINANCE_USER"): string {
-  return role === "ADMIN" ? "/admin/documents" : "/user/accueil";
+  return role === "ADMIN" ? "/admin/documents/import" : "/user/accueil";
 }
 
 function Icon({ children, size = 16 }: { children: ReactNode; size?: number }) {

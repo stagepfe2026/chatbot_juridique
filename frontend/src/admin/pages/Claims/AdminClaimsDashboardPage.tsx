@@ -22,10 +22,7 @@ export default function AdminClaimsDashboardPage() {
   }, []);
 
   async function loadData() {
-    const [statsData, claimsData] = await Promise.all([
-      getAdminClaimStats(),
-      listAdminClaims({}),
-    ]);
+    const [statsData, claimsData] = await Promise.all([getAdminClaimStats(), listAdminClaims()]);
     setStats(statsData);
     setRecentClaims(claimsData.slice(0, 5));
   }
@@ -33,8 +30,8 @@ export default function AdminClaimsDashboardPage() {
   const distribution = useMemo(() => {
     if (!stats) return [];
     return [
-      { label: claimStatusLabels.PENDING, value: stats.pending },
-      { label: claimStatusLabels.IN_PROGRESS, value: stats.inProgress },
+      { label: claimStatusLabels.SUBMITTED, value: stats.pending },
+      { label: claimStatusLabels.PROCESSING, value: stats.inProgress },
       { label: claimStatusLabels.RESOLVED, value: stats.resolved },
     ];
   }, [stats]);
@@ -48,9 +45,7 @@ export default function AdminClaimsDashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight text-slate-950">Dashboard des reclamations</h1>
             <p className="mt-1 text-sm text-slate-500">Vue d'ensemble pour suivre le volume, les SLA et la charge de traitement.</p>
           </div>
-          <Link to="/admin/claims" className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700">
-            Ouvrir la gestion detaillee
-          </Link>
+          <Link to="/admin/claims" className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700">Ouvrir la gestion detaillee</Link>
         </div>
       </section>
 
@@ -70,15 +65,15 @@ export default function AdminClaimsDashboardPage() {
           </div>
           <div className="mt-4 grid gap-3">
             {recentClaims.map((claim) => (
-              <Link key={claim.id} to={`/admin/claims/${claim.id}`} className="grid gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-red-200 hover:bg-red-50/40">
+              <Link key={claim.id} to="/admin/claims" className="grid gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-red-200 hover:bg-red-50/40">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(claim.status)}`}>{claimStatusLabels[claim.status]}</span>
-                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(claim.priority)}`}>{claim.priority}</span>
-                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${slaBadgeClass(claim.slaStatus)}`}>{claim.slaStatus}</span>
+                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(claim.priority ?? "NORMAL")}`}>{claim.priority ?? "NORMAL"}</span>
+                  {claim.slaStatus ? <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${slaBadgeClass(claim.slaStatus)}`}>{claim.slaStatus}</span> : null}
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-slate-900">{claim.subject}</div>
-                  <div className="text-sm text-slate-500">{claim.userEmail} • {formatClaimDate(claim.createdAt)}</div>
+                  <div className="text-sm text-slate-500">{claim.userEmail} ? {formatClaimDate(claim.createdAt)}</div>
                 </div>
               </Link>
             ))}

@@ -86,18 +86,18 @@ export default function UserLayout() {
   }, []);
 
   return (
-    <div className={isDark ? "flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.18),_transparent_38%),linear-gradient(180deg,_#0f172a,_#111827)] text-slate-100" : "flex min-h-screen flex-col bg-[#f8f4f3] text-slate-900"}>
-      <header className={isDark ? "sticky top-0 z-40 border-b border-slate-700/80 bg-slate-900/85 backdrop-blur-sm" : "sticky top-0 z-40 border-b border-white/50 bg-white/85 backdrop-blur-sm"}>
+    <div className={isDark ? "user-shell flex min-h-screen flex-col bg-[#140f10] text-[#f3e6df]" : "user-shell flex min-h-screen flex-col bg-[#f8f4f3] text-slate-900"}>
+      <header className={isDark ? "user-header sticky top-0 z-40 border-b border-[#5b463f]/70 bg-[#181112]/88 backdrop-blur-sm" : "user-header sticky top-0 z-40 border-b border-white/50 bg-white/85 backdrop-blur-sm"}>
         <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#DA3D20] text-xl font-black text-white">
               AJ
             </div>
             <div className="min-w-0">
-              <div className={isDark ? "truncate text-xl font-bold tracking-tight text-slate-100" : "truncate text-xl font-bold tracking-tight text-slate-800"}>
+              <div className={isDark ? "truncate text-xl font-bold tracking-tight text-[#f3e6df]" : "truncate text-xl font-bold tracking-tight text-slate-800"}>
                 Assistant Juridique
               </div>
-              <div className={isDark ? "truncate text-xs font-medium text-slate-400" : "truncate text-xs font-medium text-slate-500"}>
+              <div className={isDark ? "truncate text-xs font-medium text-[#ad9890]" : "truncate text-xs font-medium text-slate-500"}>
                 Espace utilisateur - {user?.prenom} {user?.nom}
               </div>
             </div>
@@ -108,9 +108,13 @@ export default function UserLayout() {
               to="/user/accueil"
               className={({ isActive }) =>
                 `${navBase} ${
-                  isActive
-                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  isDark
+                    ? isActive
+                      ? "border-[#cf3f23] bg-[#cf3f23] text-white shadow-[0_12px_24px_rgba(207,63,35,0.28)]"
+                      : "border-[#3a2b28] bg-[#1a1517] text-[#e6d4cc] hover:border-[#ff9a73] hover:bg-[#241818] hover:text-[#fff0e8]"
+                    : isActive
+                      ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 }`
               }
             >
@@ -124,9 +128,13 @@ export default function UserLayout() {
               to="/user/recherche"
               className={({ isActive }) =>
                 `${navBase} ${
-                  isActive
-                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  isDark
+                    ? isActive
+                      ? "border-[#cf3f23] bg-[#cf3f23] text-white shadow-[0_12px_24px_rgba(207,63,35,0.28)]"
+                      : "border-[#3a2b28] bg-[#1a1517] text-[#e6d4cc] hover:border-[#ff9a73] hover:bg-[#241818] hover:text-[#fff0e8]"
+                    : isActive
+                      ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 }`
               }
             >
@@ -141,9 +149,13 @@ export default function UserLayout() {
               to="/user/chat"
               className={({ isActive }) =>
                 `${navBase} ${
-                  isActive
-                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  isDark
+                    ? isActive
+                      ? "border-[#cf3f23] bg-[#cf3f23] text-white shadow-[0_12px_24px_rgba(207,63,35,0.28)]"
+                      : "border-[#3a2b28] bg-[#1a1517] text-[#e6d4cc] hover:border-[#ff9a73] hover:bg-[#241818] hover:text-[#fff0e8]"
+                    : isActive
+                      ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 }`
               }
             >
@@ -156,9 +168,13 @@ export default function UserLayout() {
               to="/user/favoris"
               className={({ isActive }) =>
                 `${navBase} ${
-                  isActive
-                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  isDark
+                    ? isActive
+                      ? "border-[#cf3f23] bg-[#cf3f23] text-white shadow-[0_12px_24px_rgba(207,63,35,0.28)]"
+                      : "border-[#3a2b28] bg-[#1a1517] text-[#e6d4cc] hover:border-[#ff9a73] hover:bg-[#241818] hover:text-[#fff0e8]"
+                    : isActive
+                      ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 }`
               }
             >
@@ -177,9 +193,13 @@ export default function UserLayout() {
               to="/user/reclamations"
               className={({ isActive }) =>
                 `${navBase} ${
-                  isActive
-                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  isDark
+                    ? isActive
+                      ? "border-[#cf3f23] bg-[#cf3f23] text-white shadow-[0_12px_24px_rgba(207,63,35,0.28)]"
+                      : "border-[#3a2b28] bg-[#1a1517] text-[#e6d4cc] hover:border-[#ff9a73] hover:bg-[#241818] hover:text-[#fff0e8]"
+                    : isActive
+                      ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 }`
               }
             >
@@ -200,9 +220,13 @@ export default function UserLayout() {
               to="/user/profil"
               className={({ isActive }) =>
                 `${navBase} ${
-                  isActive
-                    ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  isDark
+                    ? isActive
+                      ? "border-[#cf3f23] bg-[#cf3f23] text-white shadow-[0_12px_24px_rgba(207,63,35,0.28)]"
+                      : "border-[#3a2b28] bg-[#1a1517] text-[#e6d4cc] hover:border-[#ff9a73] hover:bg-[#241818] hover:text-[#fff0e8]"
+                    : isActive
+                      ? "border-red-600 bg-red-600 text-white shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 }`
               }
             >
@@ -216,7 +240,7 @@ export default function UserLayout() {
             <button
               type="button"
               className={isDark
-                ? "inline-flex items-center gap-1.5 rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 transition duration-150 hover:border-amber-300 hover:text-amber-200"
+                ? "inline-flex items-center gap-1.5 rounded-full border border-[#5b463f] bg-[#181112] px-3 py-1.5 text-xs font-medium text-[#e6d4cc] transition duration-150 hover:border-[#ff9a73] hover:bg-[#241818] hover:text-[#fff0e8]"
                 : "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition duration-150 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
               }
               onClick={toggleTheme}
@@ -243,7 +267,7 @@ export default function UserLayout() {
             <button
               type="button"
               className={isDark
-                ? "inline-flex items-center gap-1.5 rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 no-underline transition duration-150 hover:border-red-300 hover:bg-slate-700 hover:text-red-200"
+                ? "inline-flex items-center gap-1.5 rounded-full border border-[#5b463f] bg-[#181112] px-3 py-1.5 text-xs font-medium text-[#e6d4cc] no-underline transition duration-150 hover:border-[#ff8e72] hover:bg-[#241818] hover:text-[#ffd7cb]"
                 : "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 no-underline transition duration-150 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
               }
               onClick={onLogout}
@@ -259,18 +283,11 @@ export default function UserLayout() {
         </div>
       </header>
 
-      <main className={isChatPage || isClaimsPage || isFavoritesPage || isSearchPage || isProfilePage ? "w-full flex-1 bg-[#F3F4F4] px-3 py-3 lg:px-4" : "mx-auto w-full max-w-[1400px] bg-[#F3F4F4] px-4 py-4 lg:px-6"}>
-        <Outlet />
+      <main className={isChatPage || isClaimsPage || isFavoritesPage || isSearchPage || isProfilePage ? (isDark ? "user-main w-full flex-1 bg-[#140f10] px-3 py-3 lg:px-4" : "user-main w-full flex-1 bg-[#F3F4F4] px-3 py-3 lg:px-4") : (isDark ? "user-main mx-auto w-full max-w-[1400px] bg-[#140f10] px-4 py-4 lg:px-6" : "user-main mx-auto w-full max-w-[1400px] bg-[#F3F4F4] px-4 py-4 lg:px-6")}>
+        <div className="user-content">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-

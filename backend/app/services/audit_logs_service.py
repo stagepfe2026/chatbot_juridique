@@ -10,10 +10,12 @@ from app.schemas import AuditLogDetailsOut, AuditLogLevel, AuditLogOut, AuditLog
 _audit_logs_repo = AuditLogsRepository()
 
 
+# Cree les index utiles aux journaux d'audit.
 def ensure_audit_log_indexes() -> None:
     _audit_logs_repo.ensure_indexes()
 
 
+# Extrait l'IP cliente reelle depuis la requete ou le proxy inverse.
 def _client_ip_from_request(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for", "").strip()
     if forwarded:
@@ -23,6 +25,7 @@ def _client_ip_from_request(request: Request) -> str:
     return "unknown"
 
 
+# Enregistre un evenement d'audit structure avec contexte HTTP et metadonnees.
 def record_audit_event(
     *,
     request: Request,
@@ -55,6 +58,7 @@ def record_audit_event(
     return _audit_logs_repo.create_log(model)
 
 
+# Retourne les logs d'audit sous un format pret pour l'API.
 def list_audit_logs(limit: int = 200) -> list[AuditLogOut]:
     items = _audit_logs_repo.list_logs(limit=limit)
     result: list[AuditLogOut] = []

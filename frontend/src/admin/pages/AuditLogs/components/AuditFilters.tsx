@@ -36,7 +36,6 @@ export function AuditFilters({
   onStatusChange,
   onLevelChange,
   onDateChange,
-  onReset,
 }: AuditFiltersProps) {
   return (
     <section className="rounded-2xl border border-white/70 bg-white/50 p-4 shadow-lg">

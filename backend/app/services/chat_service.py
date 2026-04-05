@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 _documents_repo = DocumentsRepository()
 
 
-def _apply_response_mode(question: str, response_mode: ResponseMode) -> str:
+# Ajoute une instruction de style pour guider la longueur et la precision de la reponse.
+def _build_llm_question(question: str, response_mode: ResponseMode) -> str:
     clean = question.strip()
     if response_mode == ResponseMode.SHORT:
         return (
@@ -30,17 +31,20 @@ def _apply_response_mode(question: str, response_mode: ResponseMode) -> str:
     )
 
 
+# Cree une question de chat, delegue au pipeline RAG et formate la reponse API.
 async def create_chat_question(
     question: str,
     user_id: str | None = None,
     conversation_id: str | None = None,
     response_mode: ResponseMode = ResponseMode.DETAILED,
 ) -> AskQuestionResponse:
+    clean_question = question.strip()
     question_id, answer, sources, source_file, resolved_conversation_id = await asyncio.to_thread(
         ask_question,
-        _apply_response_mode(question, response_mode),
+        clean_question,
         user_id,
         conversation_id,
+        _build_llm_question(clean_question, response_mode),
     )
     return AskQuestionResponse(
         questionId=question_id,
@@ -51,10 +55,12 @@ async def create_chat_question(
     )
 
 
+# Retourne les sources associees a une reponse deja enregistree.
 async def list_question_sources(question_id: str) -> list[SourceItem]:
     return await asyncio.to_thread(get_sources_for_question, question_id)
 
 
+# Verifie que LibreOffice est disponible pour convertir les fichiers Word en PDF.
 def _ensure_soffice_available() -> None:
     try:
         result = subprocess.run(
@@ -80,6 +86,7 @@ def _ensure_soffice_available() -> None:
         ) from exc
 
 
+# Convertit un document Word en PDF cache pour un affichage navigateur plus simple.
 def _convert_word_to_pdf(source_path: Path) -> Path:
     settings.pdf_cache_path.mkdir(parents=True, exist_ok=True)
     target_path = settings.pdf_cache_path / f"{source_path.stem}.pdf"
@@ -129,6 +136,7 @@ def _convert_word_to_pdf(source_path: Path) -> Path:
     return target_path
 
 
+# Sert le fichier source d'un document, avec conversion PDF si necessaire.
 async def download_document_file(document_id: str) -> FileResponse:
     doc = await asyncio.to_thread(_documents_repo.get_active_document_fields_by_id, document_id, {"filePath": 1})
     if not doc:
@@ -151,5 +159,6 @@ async def download_document_file(document_id: str) -> FileResponse:
     )
 
 
+# Propose des suggestions de questions proches a partir de la requete en cours.
 async def list_question_suggestions(query: str, user_id: str | None = None, limit: int = 5) -> list[str]:
     return await asyncio.to_thread(suggest_question_suggestions, query, user_id, limit)

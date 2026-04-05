@@ -256,7 +256,10 @@ class ClaimCategory(str, Enum):
 
 class ClaimStatus(str, Enum):
     SUBMITTED = "SUBMITTED"
-    ANSWERED = "ANSWERED"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    PROCESSING = "PROCESSING"
+    RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
 
 
 class ClaimPriority(str, Enum):
@@ -292,6 +295,13 @@ class ClaimReplyRequest(BaseModel):
     message: str = Field(min_length=3, max_length=4000)
 
 
+class ClaimActivityLogEntryOut(BaseModel):
+    id: str
+    description: str
+    actorName: str
+    createdAt: datetime
+
+
 class ClaimOut(BaseModel):
     id: str
     ticketNumber: str
@@ -309,6 +319,7 @@ class ClaimOut(BaseModel):
     isReplyReadByUser: bool = True
     createdAt: datetime
     updatedAt: datetime
+    activityLog: list[ClaimActivityLogEntryOut] = Field(default_factory=list)
 
 
 class ClaimUnreadCountOut(BaseModel):

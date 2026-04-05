@@ -71,13 +71,13 @@ export default function AdminClaimDetailPage() {
           <div>
             <Link to="/admin/claims" className="text-sm font-semibold text-red-600">Retour a la liste</Link>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Traitement de la reclamation</h1>
-            {claim ? <p className="mt-1 text-sm text-slate-500">#{claim.id.slice(-6).toUpperCase()} • {claim.subject}</p> : null}
+            {claim ? <p className="mt-1 text-sm text-slate-500">#{claim.id.slice(-6).toUpperCase()} ï¿½ {claim.subject}</p> : null}
           </div>
           {claim ? (
             <div className="flex flex-wrap gap-2">
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(claim.status)}`}>{claimStatusLabels[claim.status]}</span>
-              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(claim.priority)}`}>{claimPriorityLabels[claim.priority]}</span>
-              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${slaBadgeClass(claim.slaStatus)}`}>{claim.slaStatus}</span>
+              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(claim.priority ?? "NORMAL")}`}>{claimPriorityLabels[claim.priority ?? "NORMAL"]}</span>
+              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${slaBadgeClass(claim.slaStatus ?? "ON_TIME")}`}>{claim.slaStatus}</span>
             </div>
           ) : null}
         </div>
@@ -94,10 +94,10 @@ export default function AdminClaimDetailPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900">Conversation</h2>
-                <div className="text-sm text-slate-500">{claim.messages.length} message(s)</div>
+                <div className="text-sm text-slate-500">{(claim.messages ?? []).length} message(s)</div>
               </div>
               <div className="mt-4 grid gap-4">
-                {claim.messages.map((message) => (
+                {(claim.messages ?? []).map((message) => (
                   <div key={message.id} className={`max-w-[88%] rounded-3xl px-4 py-3 text-sm leading-6 ${message.authorType === "ADMIN" ? "justify-self-end bg-red-600 text-white" : "justify-self-start border border-slate-200 bg-slate-50 text-slate-700"}`}>
                     <div className="text-xs font-semibold uppercase tracking-wide opacity-75">{message.authorName}</div>
                     <div className="mt-2 whitespace-pre-wrap">{message.message}</div>
@@ -151,8 +151,8 @@ export default function AdminClaimDetailPage() {
               </div>
               <div className="grid gap-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Changer statut</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["PENDING", "IN_PROGRESS", "RESOLVED"] as ClaimStatus[]).map((status) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(["SUBMITTED", "UNDER_REVIEW", "PROCESSING", "RESOLVED", "CLOSED"] as ClaimStatus[]).map((status) => (
                     <button
                       key={status}
                       type="button"
@@ -175,10 +175,10 @@ export default function AdminClaimDetailPage() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Journal d'actions</div>
                 <div className="mt-3 grid gap-3 text-sm text-slate-600">
-                  {claim.activityLog.map((entry) => (
+                  {(claim.activityLog ?? []).map((entry) => (
                     <div key={entry.id} className="relative pl-5 before:absolute before:left-0 before:top-1 before:h-2.5 before:w-2.5 before:rounded-full before:bg-red-500">
                       <div className="font-semibold text-slate-800">{entry.description}</div>
-                      <div>{entry.actorName} • {formatClaimDate(entry.createdAt)}</div>
+                      <div>{entry.actorName} ï¿½ {formatClaimDate(entry.createdAt)}</div>
                     </div>
                   ))}
                 </div>

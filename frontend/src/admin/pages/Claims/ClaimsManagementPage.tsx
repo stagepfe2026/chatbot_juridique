@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { listAdminClaims, replyToClaim } from "../../../services/claims.service";
-import type { Claim, ClaimCategory, ClaimPriority, ClaimStatus } from "../../../models/claim.models";
+import { normalizeClaimStatus, type Claim, type ClaimCategory, type ClaimPriority, type ClaimStatus } from "../../../models/claim.models";
 import { publishSnackbar } from "../../../utils/snackbarBus";
 import { buildWebSocketUrl } from "../../../services/realtime.service";
 
@@ -19,12 +19,17 @@ const priorityMap: Record<ClaimPriority, string> = {
 };
 
 function statusLabel(value: ClaimStatus): string {
-  return value === "ANSWERED" ? "Traitée" : "En attente";
+  const normalized = normalizeClaimStatus(value);
+  if (normalized === "RESOLVED") return "Traitee";
+  if (normalized === "PROCESSING") return "En traitement";
+  if (normalized === "UNDER_REVIEW") return "En cours d'analyse";
+  if (normalized === "CLOSED") return "Fermee";
+  return "En attente";
 }
 
 function summarizeDescription(description: string): string {
   const normalized = description.replace(/\s+/g, " ").trim();
-  if (!normalized) return "Aucun résumé disponible";
+  if (!normalized) return "Aucun resume disponible";
 
   const cleaned = normalized
     .replace(/^(bonjour|salut|bonsoir)[,\s-]*/i, "")
@@ -80,6 +85,16 @@ function getInitials(email: string): string {
   return base.slice(0, 2).toUpperCase();
 }
 
+function getOfficialTicketNumber(claim: Claim): string {
+  if (claim.ticketNumber?.trim()) {
+    return claim.ticketNumber.trim();
+  }
+
+  const year = new Date(claim.createdAt).getFullYear();
+  const suffix = claim.id.replace(/[^a-zA-Z0-9]/g, "").slice(-5).toUpperCase().padStart(5, "0");
+  return `REC-${year}-${suffix}`;
+}
+
 function InfoBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-[#ece4e1] bg-[#fcfaf9] px-3 py-2.5">
@@ -90,7 +105,7 @@ function InfoBox({ label, value }: { label: string; value: string }) {
 }
 
 function StatusBadge({ status }: { status: ClaimStatus }) {
-  const answered = status === "ANSWERED";
+  const answered = normalizeClaimStatus(status) === "RESOLVED";
   return (
     <span
       className={
@@ -201,8 +216,8 @@ export default function ClaimsManagementPage() {
   );
 
   const stats = useMemo(() => {
-    const pending = claims.filter((c) => c.status !== "ANSWERED").length;
-    const answered = claims.filter((c) => c.status === "ANSWERED").length;
+    const pending = claims.filter((c) => normalizeClaimStatus(c.status) !== "RESOLVED").length;
+    const answered = claims.filter((c) => normalizeClaimStatus(c.status) === "RESOLVED").length;
     const urgent = claims.filter((c) => (c.priority ?? "NORMAL") === "URGENT").length;
     const high = claims.filter((c) => {
       const p = c.priority ?? "NORMAL";
@@ -220,7 +235,7 @@ export default function ClaimsManagementPage() {
   async function onReply(claimId: string) {
     const message = (replyDrafts[claimId] ?? "").trim();
     if (message.length < 3) {
-      return publishSnackbar({ variant: "warning", message: "Réponse trop courte" });
+      return publishSnackbar({ variant: "warning", message: "Reponse trop courte" });
     }
 
     setSavingId(claimId);
@@ -230,7 +245,7 @@ export default function ClaimsManagementPage() {
       setSelectedId(null);
       setPreviewImage(null);
       await loadClaims();
-      publishSnackbar({ variant: "success", message: "Réponse envoyée" });
+      publishSnackbar({ variant: "success", message: "Reponse envoyee" });
     } finally {
       setSavingId(null);
     }
@@ -239,15 +254,12 @@ export default function ClaimsManagementPage() {
   return (
     <div className="space-y-4">
       <section className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight text-[#1f1b1a]">
-          Gestion des réclamations
-        </h1>
-      
+        <h1 className="text-2xl font-bold tracking-tight text-red-700">Gestion des reclamations</h1>
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Réclamations en attente"
+          title="Reclamations en attente"
           value={String(stats.pending)}
           iconBg="bg-[#fff1ed]"
           iconColor="text-[#DA3D20]"
@@ -260,7 +272,7 @@ export default function ClaimsManagementPage() {
         />
 
         <StatCard
-          title="Réclamations traitées"
+          title="Reclamations traitees"
           value={String(stats.answered)}
           iconBg="bg-blue-50"
           iconColor="text-[#233142]"
@@ -273,10 +285,10 @@ export default function ClaimsManagementPage() {
         />
 
         <StatCard
-          title="Réclamations urgentes"
+          title="Reclamations urgentes"
           value={String(stats.urgent)}
           iconBg="bg-gray-200"
-        iconColor="text-gray-600"
+          iconColor="text-gray-600"
           icon={
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 9v4" />
@@ -287,7 +299,7 @@ export default function ClaimsManagementPage() {
         />
 
         <StatCard
-          title="Priorité élevée"
+          title="Priorite elevee"
           value={String(stats.high)}
           iconBg="bg-[#e9f8ef]"
           iconColor="text-[#16a34a]"
@@ -302,17 +314,17 @@ export default function ClaimsManagementPage() {
       <section className="grid gap-4 xl:grid-cols-[1.45fr_0.6fr]">
         <div className="rounded-[22px] border border-[#e9e1de] bg-white p-4 shadow-lg">
           <div className="mb-4">
-            <h2 className="text-lg font-bold text-[#140a08]">Réclamations récentes</h2>
-         
+            <h2 className="text-lg font-bold text-[#140a08]">Reclamations recentes</h2>
           </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8b7d78]">
+                  <th className="border-b border-[#eee6e3] px-3 py-2.5">Dossier</th>
                   <th className="border-b border-[#eee6e3] px-3 py-2.5">Utilisateur</th>
                   <th className="border-b border-[#eee6e3] px-3 py-2.5">Sujet</th>
-                  <th className="border-b border-[#eee6e3] px-3 py-2.5">Priorité</th>
+                  <th className="border-b border-[#eee6e3] px-3 py-2.5">Priorite</th>
                   <th className="border-b border-[#eee6e3] px-3 py-2.5">Statut</th>
                   <th className="border-b border-[#eee6e3] px-3 py-2.5 text-right">Action</th>
                 </tr>
@@ -330,7 +342,7 @@ export default function ClaimsManagementPage() {
                 {!loading && claims.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-3 py-8 text-center text-xs text-[#8b7d78]">
-                      Aucune réclamation
+                      Aucune reclamation
                     </td>
                   </tr>
                 ) : null}
@@ -338,6 +350,13 @@ export default function ClaimsManagementPage() {
                 {!loading &&
                   claims.map((claim) => (
                     <tr key={claim.id} className="align-middle">
+                      <td className="border-b border-[#f3ece9] px-3 py-3">
+                        <div className="min-w-[138px]">
+                          <div className="text-xs font-semibold text-[#1f1b1a]">{getOfficialTicketNumber(claim)}</div>
+                          <div className="mt-1 text-[11px] text-[#8b7d78]">{new Date(claim.createdAt).toLocaleDateString("fr-FR")}</div>
+                        </div>
+                      </td>
+
                       <td className="border-b border-[#f3ece9] px-3 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f5ece8] text-[10px] font-bold text-[#1f1b1a]">
@@ -349,13 +368,10 @@ export default function ClaimsManagementPage() {
 
                       <td className="border-b border-[#f3ece9] px-3 py-3">
                         <div className="max-w-[290px]">
-                          <div className="text-xs font-semibold leading-5 text-[#1f1b1a]">
-                            {summarizeDescription(claim.description)}
-                          </div>
+                          <div className="text-xs font-semibold leading-5 text-[#1f1b1a]">{summarizeDescription(claim.description)}</div>
                           <div className="mt-1 text-[11px] text-[#8b7d78]">{claim.subject}</div>
                         </div>
                       </td>
-
 
                       <td className="border-b border-[#f3ece9] px-3 py-3">
                         <PriorityBadge priority={claim.priority ?? "NORMAL"} />
@@ -383,20 +399,15 @@ export default function ClaimsManagementPage() {
 
         <div className="space-y-4">
           <div className="rounded-[22px] border border-[#e9e1de] bg-white p-4 shadow-lg">
-            <h3 className="text-base font-bold text-[#140a08]">Réclamations critiques</h3>
-            <p className="mt-1 text-xs text-[#7d706b]">
-              Réclamations urgentes.
-            </p>
+            <h3 className="text-base font-bold text-[#140a08]">Reclamations critiques</h3>
+            <p className="mt-1 text-xs text-[#7d706b]">Reclamations urgentes.</p>
 
             <div className="mt-4 space-y-3">
               {claims
                 .filter((claim) => (claim.priority ?? "NORMAL") === "URGENT" || (claim.priority ?? "NORMAL") === "HIGH")
                 .slice(0, 4)
                 .map((claim) => (
-                  <div
-                    key={claim.id}
-                    className="rounded-xl border border-[#f3d9d4] bg-[#fff8f6] px-3 py-3"
-                  >
+                  <div key={claim.id} className="rounded-xl border border-[#f3d9d4] bg-[#fff8f6] px-3 py-3">
                     <div className="flex items-start gap-2.5">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f5ece8] text-[10px] font-bold text-[#1f1b1a]">
                         {getInitials(claim.userEmail)}
@@ -404,12 +415,8 @@ export default function ClaimsManagementPage() {
 
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-semibold text-[#1f1b1a]">{claim.userEmail}</div>
-                        <div className="mt-0.5 text-xs font-semibold leading-5 text-[#d94841]">
-                          {summarizeDescription(claim.description)}
-                        </div>
-                        <div className="mt-1 text-[11px] text-[#7d706b]">
-                          {new Date(claim.createdAt).toLocaleString("fr-FR")}
-                        </div>
+                        <div className="mt-0.5 text-xs font-semibold leading-5 text-[#d94841]">{summarizeDescription(claim.description)}</div>
+                        <div className="mt-1 text-[11px] text-[#7d706b]">{new Date(claim.createdAt).toLocaleString("fr-FR")}</div>
                       </div>
                     </div>
                   </div>
@@ -431,12 +438,9 @@ export default function ClaimsManagementPage() {
           <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[22px] border border-[#ece4e1] bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-[#ece4e1] bg-[#fcfaf9] px-5 py-4">
               <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#a0928c]">
-                  Dossier réclamation
-                </div>
-                <h2 className="mt-1.5 truncate text-lg font-bold tracking-tight text-[#1f1b1a]">
-                  {selectedClaim.subject}
-                </h2>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#a0928c]">Dossier reclamation</div>
+                <h2 className="mt-1.5 truncate text-lg font-bold tracking-tight text-[#1f1b1a]">{selectedClaim.subject}</h2>
+                <div className="mt-1 text-xs font-semibold text-[#7d706b]">{getOfficialTicketNumber(selectedClaim)}</div>
               </div>
 
               <button
@@ -450,25 +454,25 @@ export default function ClaimsManagementPage() {
 
             <div className="overflow-y-auto px-5 py-5">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <InfoBox label="Numero dossier" value={getOfficialTicketNumber(selectedClaim)} />
                 <InfoBox label="Utilisateur" value={selectedClaim.userEmail} />
-                <InfoBox label="Date" value={new Date(selectedClaim.createdAt).toLocaleString("fr-FR")} />
-                <InfoBox label="Priorité" value={priorityMap[selectedClaim.priority ?? "NORMAL"]} />
+                <InfoBox label="Categorie" value={categoryMap[selectedClaim.category]} />
+                <InfoBox label="Priorite" value={priorityMap[selectedClaim.priority ?? "NORMAL"]} />
               </div>
 
               <div className="mt-4 grid gap-4">
                 <SectionCard title="Description">
-                  <p className="whitespace-pre-wrap text-xs leading-6 text-[#5f5551]">
-                    {selectedClaim.description}
-                  </p>
-                  {selectedClaim.pageContext ? (
-                    <div className="mt-3 rounded-xl bg-[#fcfaf9] px-3 py-2.5 text-xs text-[#7d706b]">
-                      Page/Lien: {selectedClaim.pageContext}
-                    </div>
-                  ) : null}
+                  <p className="whitespace-pre-wrap text-xs leading-6 text-[#5f5551]">{selectedClaim.description}</p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <InfoBox label="Date" value={new Date(selectedClaim.createdAt).toLocaleString("fr-FR")} />
+                    <InfoBox label="Statut" value={statusLabel(selectedClaim.status)} />
+                    <InfoBox label="Lien" value={selectedClaim.pageContext || "Non renseigne"} />
+                    <InfoBox label="Piece jointe" value={selectedClaim.attachments.length > 0 ? `${selectedClaim.attachments.length} fichier(s)` : "Aucune"} />
+                  </div>
                 </SectionCard>
 
                 {selectedClaim.attachments.length > 0 ? (
-                  <SectionCard title="Captures d'écran">
+                  <SectionCard title="Captures d'ecran">
                     <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                       {selectedClaim.attachments.map((file, index) => (
                         <button
@@ -484,7 +488,25 @@ export default function ClaimsManagementPage() {
                   </SectionCard>
                 ) : null}
 
-                <SectionCard title="Réponse à l'utilisateur">
+                <SectionCard title="Journal d'actions">
+                  {selectedClaim.activityLog && selectedClaim.activityLog.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedClaim.activityLog.map((entry) => (
+                        <div key={entry.id} className="relative rounded-xl border border-[#ece4e1] bg-[#fcfaf9] px-4 py-3 pl-8">
+                          <span className="absolute left-3 top-4 h-2.5 w-2.5 rounded-full bg-[#DA3D20]" />
+                          <div className="text-xs font-semibold text-[#1f1b1a]">{entry.description}</div>
+                          <div className="mt-1 text-[11px] text-[#7d706b]">{entry.actorName} - {new Date(entry.createdAt).toLocaleString("fr-FR")}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-[#ece4e1] bg-[#fcfaf9] px-4 py-6 text-center text-xs text-[#8b7d78]">
+                      Aucune action journalisee pour le moment.
+                    </div>
+                  )}
+                </SectionCard>
+
+                <SectionCard title="Reponse a l'utilisateur">
                   <textarea
                     rows={5}
                     value={replyDrafts[selectedClaim.id] ?? ""}
@@ -495,7 +517,7 @@ export default function ClaimsManagementPage() {
                       }))
                     }
                     className="w-full rounded-xl border border-[#e8dfdc] px-3 py-2.5 text-xs text-[#1f1b1a] outline-none transition focus:border-[#DA3D20] focus:ring-2 focus:ring-[#ffe6de]"
-                    placeholder="Écrire votre réponse..."
+                    placeholder="Ecrire votre reponse..."
                   />
                   <div className="mt-3 flex justify-end">
                     <button
@@ -515,10 +537,7 @@ export default function ClaimsManagementPage() {
       ) : null}
 
       {previewImage ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-4"
-          onClick={() => setPreviewImage(null)}
-        >
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-4" onClick={() => setPreviewImage(null)}>
           <div className="relative max-h-[90vh] w-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
@@ -527,11 +546,7 @@ export default function ClaimsManagementPage() {
             >
               Fermer
             </button>
-            <img
-              src={previewImage.src}
-              alt={previewImage.alt}
-              className="max-h-[90vh] w-full rounded-2xl object-contain shadow-2xl"
-            />
+            <img src={previewImage.src} alt={previewImage.alt} className="max-h-[90vh] w-full rounded-2xl object-contain shadow-2xl" />
           </div>
         </div>
       ) : null}

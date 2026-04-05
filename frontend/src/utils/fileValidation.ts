@@ -1,4 +1,6 @@
-const MAX_MB = 20;
+export const MAX_FILE_MB = 50;
+export const ACCEPTED_FILE_LABEL = "PDF, DOC, DOCX";
+
 const allowedMime = new Set([
   "application/pdf",
   "application/msword",
@@ -6,9 +8,11 @@ const allowedMime = new Set([
 ]);
 
 export function validateFile(file: File): string | null {
-  if (!allowedMime.has(file.type)) return "Format invalide. Formats acceptés : PDF, DOC, DOCX.";
+  if (!allowedMime.has(file.type)) return `Format invalide. Formats acceptes : ${ACCEPTED_FILE_LABEL}.`;
+
   const sizeMb = file.size / (1024 * 1024);
-  if (sizeMb > MAX_MB) return `Fichier trop volumineux. Taille max : ${MAX_MB} MB.`;
+  if (sizeMb > MAX_FILE_MB) return `Fichier trop volumineux. Taille max : ${MAX_FILE_MB} MB.`;
+
   return null;
 }
 

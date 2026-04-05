@@ -1,4 +1,4 @@
-import type { ClaimPriority, ClaimSlaStatus, ClaimStatus } from "../models/claim.models";
+import { normalizeClaimStatus, type ClaimPriority, type ClaimSlaStatus, type ClaimStatus } from "../models/claim.models";
 
 export function formatClaimDate(value: string | null | undefined) {
   if (!value) return "-";
@@ -14,10 +14,11 @@ export function formatRelativeHours(hours: number) {
 }
 
 export function statusBadgeClass(status: ClaimStatus) {
-  if (status === "CLOSED") return "border-slate-300 bg-slate-100 text-slate-700";
-  if (status === "RESOLVED" || status === "ANSWERED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "PROCESSING") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (status === "UNDER_REVIEW") return "border-sky-200 bg-sky-50 text-sky-700";
+  const normalized = normalizeClaimStatus(status);
+  if (normalized === "CLOSED") return "border-slate-300 bg-slate-100 text-slate-700";
+  if (normalized === "RESOLVED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (normalized === "PROCESSING") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (normalized === "UNDER_REVIEW") return "border-sky-200 bg-sky-50 text-sky-700";
   return "border-rose-200 bg-rose-50 text-rose-700";
 }
 

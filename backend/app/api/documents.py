@@ -4,6 +4,7 @@ from app.auth import require_role
 from app.controllers.documents_controller import (
     delete_document_controller,
     document_points_controller,
+    download_document_controller,
     import_document_controller,
     index_existing_documents_controller,
     index_one_document_controller,
@@ -86,6 +87,26 @@ def index_existing_documents():
 @router.post("/{document_id}/index")
 def index_one_document(document_id: str):
     return index_one_document_controller(document_id)
+
+
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: str,
+    request: Request,
+    current_user: AuthUser = Depends(require_role(UserRole.ADMIN)),
+):
+    response = await download_document_controller(document_id)
+    record_audit_event(
+        request=request,
+        action="DOWNLOAD_DOC_ADMIN",
+        user=current_user.email,
+        resource=document_id,
+        status=AuditLogStatus.SUCCESS,
+        level=AuditLogLevel.INFO,
+        message="Consultation du document source par un administrateur.",
+        payload={"documentId": document_id},
+    )
+    return response
 
 
 @router.get("/qdrant/health")

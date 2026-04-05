@@ -404,7 +404,7 @@ export default function FavoriteDocumentsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-8xl space-y-4">
+    <div className="favorite-docs-page mx-auto max-w-8xl space-y-4">
       <section className="">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between rounded-2xl border border-white/50 bg-white/80 py-1 shadow-lg backdrop-blur py-4 px-2">
           <div>
@@ -514,7 +514,7 @@ export default function FavoriteDocumentsPage() {
       </section>
       {!loading && !error && results.length === 0 ? (
         <div className="rounded-[24px] border border-dashed border-[#dccdc8] bg-white px-6 py-10 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fdf1ed] text-[#DA3D20]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[#DA3D20] bg-[#fdf1ed] text-[#DA3D20]">
             <Icon>
               <path d="m12 3 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z" />
             </Icon>
@@ -588,7 +588,7 @@ export default function FavoriteDocumentsPage() {
               className="rounded-2xl border border-[#e7ddd9] bg-white p-4 transition hover:border-[#d8b7af] hover:shadow-lg"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fdf1ed] text-[#DA3D20]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-[#fdf1ed] text-[#DA3D20] dark:border-[#DA3D20]">
                   <Icon>
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <path d="M14 2v6h6" />
@@ -671,7 +671,7 @@ export default function FavoriteDocumentsPage() {
             <div className="mt-6 grid gap-4">
               <section className="rounded-[24px] bg-slate-50 px-4 py-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#DA3D20] shadow-lg ring-1 ring-slate-200">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#DA3D20] bg-white text-[#DA3D20] shadow-lg ring-1 ring-slate-200">
                     <Icon>
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <path d="M14 2v6h6" />
@@ -781,6 +781,7 @@ export default function FavoriteDocumentsPage() {
     </div>
   );
 }
+
 
 
 

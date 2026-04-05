@@ -18,7 +18,6 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from langchain_community.embeddings import FastEmbedEmbeddings
 
 from langchain_core.documents import Document
 
@@ -35,6 +34,7 @@ from app.core.config import settings
 from app.database.connections import qdrant_client
 
 from app.models import ChatQuestionModel
+from app.rag.embeddings import get_embeddings
 
 from app.rag.prompts import FINAL_ANSWER_PROMPT_FR, LEGAL_ANSWER_REVIEW_PROMPT_FR, NO_INFO_ANSWER_FR
 
@@ -160,14 +160,7 @@ LLM_TIMEOUT_ANSWER_FR = "La generation de la reponse a depasse le delai autorise
 
 
 def _get_embeddings():
-
-    global _embeddings
-
-    if _embeddings is None:
-
-        _embeddings = FastEmbedEmbeddings(model_name=settings.embedding_model)
-
-    return _embeddings
+    return get_embeddings()
 
 
 
@@ -2248,9 +2241,15 @@ def ask_question(
 
     conversation_id: str | None = None,
 
+    llm_question: str | None = None,
+
 ) -> tuple[str, str, list[SourceItem], SourceFile | None, str]:
 
-    if not question.strip():
+    plain_question = question.strip()
+
+    prompt_question = (llm_question or plain_question).strip()
+
+    if not plain_question:
 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Question vide.")
 
@@ -2262,7 +2261,7 @@ def ask_question(
 
 
 
-    save_message(resolved_conversation_id, "user", question.strip())
+    save_message(resolved_conversation_id, "user", plain_question)
 
     last_messages = get_last_messages(resolved_conversation_id, settings.memory_last_messages_limit)
 
@@ -2276,23 +2275,23 @@ def ask_question(
 
     source_file: SourceFile | None = None
 
-    if _is_summary_request(question):
+    if _is_summary_request(plain_question):
 
         answer = _build_memory_only_answer(summary, last_messages)
 
-    elif _is_small_talk(question):
+    elif _is_small_talk(plain_question):
 
-        answer = _build_small_talk_answer(question)
+        answer = _build_small_talk_answer(plain_question)
 
     else:
 
-        docs = _retrieve_relevant_docs(question.strip())
+        docs = _retrieve_relevant_docs(plain_question)
 
         sources = _to_source_items(docs)
 
         source_file = _build_source_file(sources)
 
-        rag_context = _build_rag_context(docs, question.strip())
+        rag_context = _build_rag_context(docs, plain_question)
 
 
 
@@ -2304,7 +2303,7 @@ def ask_question(
 
             rag_context=rag_context,
 
-            user_question=question.strip(),
+            user_question=prompt_question,
 
         )
 
@@ -2322,7 +2321,7 @@ def ask_question(
 
     question_model = ChatQuestionModel.new(
 
-        question=question.strip(),
+        question=plain_question,
 
         answer=answer,
 
@@ -2388,37 +2387,39 @@ def get_sources_for_question(question_id: str) -> list[SourceItem]:
 
 
 
-def get_source_file_for_question(question_id: str) -> SourceFile | None:
-
-    doc = _chat_questions_repo.get_question_record_by_id(question_id)
-
-    if not doc:
-
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question introuvable.")
-
-
-
-    raw = doc.get("sourceFile")
-
-    if not isinstance(raw, dict):
-
-        return None
-
-    return SourceFile(**raw)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Unused helper kept only as commented reference.
+# def get_source_file_for_question(question_id: str) -> SourceFile | None:
+#
+#     doc = _chat_questions_repo.get_question_record_by_id(question_id)
+#
+#     if not doc:
+#
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question introuvable.")
+#
+#
+#
+#     raw = doc.get("sourceFile")
+#
+#     if not isinstance(raw, dict):
+#
+#         return None
+#
+#     return SourceFile(**raw)
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 
 def _normalize_suggestion_text(value: str) -> str:
 
@@ -2685,6 +2686,7 @@ def suggest_question_suggestions(query: str, user_id: str | None = None, limit: 
     candidates = _build_doc_based_candidates(q, docs)
 
     return _rank_question_suggestions(q, candidates, limit=limit)
+
 
 
 
